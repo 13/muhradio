@@ -1,8 +1,14 @@
-# muh-radio
+# <img src="assets/muhradio.png" width="30" height="30" /> muhradio
 
 A home sensor network with battery-powered transmitter nodes reporting sensor
 data to one or more receivers that push it to MQTT and a live web UI.
 Supports two radio transports: **LoRa** (SX1276/RFM95W) and **CC1101**.
+
+<p align="center">
+  <img src="assets/screenshot1.png" width="200" />
+  <img src="assets/screenshot2.png" width="200" />
+  <img src="assets/screenshot3.png" width="200" />
+</p>
 
 ```
 ┌──────────────────────┐  CC1101 868.32 MHz  ┌──────────────────────────────┐
