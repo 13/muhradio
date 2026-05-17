@@ -1,0 +1,29 @@
+name: Build
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: ${{ runner.os }}-pio-${{ hashFiles('receiver/platformio.ini') }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - run: pip install platformio
+
+      - run: pio run
+        working-directory: receiver
+        # pio_secrets.py is gitignored — CI builds without crypto;
+        # WIFI_PASS / MQTT_PASS fall back to empty defaults in config.h
