@@ -127,6 +127,9 @@ void loop() {
   Serial.print(F("VCC: ")); Serial.print(vcc, 1); Serial.println(F("V"));
 #endif
 
+#ifdef MQTT_RETAINED
+  pkt.setRetained();
+#endif
 #ifdef DEBUG
   pkt.print();
 #endif

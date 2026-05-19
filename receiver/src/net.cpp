@@ -243,10 +243,10 @@ bool Net::loop(Status& s) {
   return true; // signal main to push WS status
 }
 
-bool Net::publish(const char* topic, const char* payload) {
+bool Net::publish(const char* topic, const char* payload, bool retained) {
   if (!_mqtt.connected()) _connectMqtt();
   if (!_mqtt.connected()) return false;
-  bool ok = _mqtt.publish(topic, payload, false);
+  bool ok = _mqtt.publish(topic, payload, retained);
 #ifdef VERBOSE
   Serial.println(ok ? F("> [MQTT] Published") : F("> [MQTT] Publish failed"));
 #endif

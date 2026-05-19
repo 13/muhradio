@@ -85,6 +85,14 @@ public:
   bool addI16(Field f, int16_t v)  { return _add(f, &v, 2); }
   bool addU32(Field f, uint32_t v) { return _add(f, &v, 4); }
 
+  // Bit 15 signals the receiver to publish this packet with MQTT retained=true.
+  static constexpr uint16_t BIT_RETAINED = (uint16_t)1u << 15;
+  void setRetained() {
+    _bitmap |= BIT_RETAINED;
+    _buf[3]  = (uint8_t)(_bitmap);
+    _buf[4]  = (uint8_t)(_bitmap >> 8);
+  }
+
   const uint8_t* data() const { return _buf; }
   uint8_t        size() const { return HDR_SIZE + _vLen; }
   bool           empty() const { return _vLen == 0; }

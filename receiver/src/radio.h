@@ -12,6 +12,7 @@ struct DecodedPacket {
   char json[256];
   char topic[64];
   bool valid;
+  bool retained;
 };
 
 namespace Radio {
