@@ -2,7 +2,11 @@
 #include "conf.h"
 #include <version.h>
 #include "status.h"
-#include "radio.h"
+#ifdef USE_BRESSER
+#  include "bresser.h"
+#else
+#  include "radio.h"
+#endif
 #include "net.h"
 #include "web.h"
 
@@ -18,7 +22,11 @@ void setup() {
   Cfg::load();
   Net::begin(myData);
   Web::begin(myData);
+#ifdef USE_BRESSER
+  Bresser::init();
+#else
   Radio::init();
+#endif
 
   Serial.println(F("> [INIT] Ready..."));
 }
@@ -29,6 +37,16 @@ void loop() {
   if (Net::loop(myData))
     Web::notify(myData, Net::now());
 
+#ifdef USE_BRESSER
+  if (Bresser::pending()) {
+    BresserPacket dp = Bresser::decode(Net::now(), Net::nodeId);
+    if (dp.valid) {
+      Net::publish(dp.topic, dp.json);
+      myData.addPacket(dp.json);
+      Web::notify(myData, Net::now());
+    }
+  }
+#else
   if (Radio::pending()) {
     DecodedPacket dp = Radio::decode(Radio::take(), Net::now(), Net::nodeId);
     if (dp.valid) {
@@ -37,4 +55,5 @@ void loop() {
       Web::notify(myData, Net::now());
     }
   }
+#endif
 }
