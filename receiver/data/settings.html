@@ -147,6 +147,36 @@
           </div>
         </div>
 
+        <!-- NTP section -->
+        <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
+          <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+            <span class="text-sm font-medium text-gray-500 dark:text-gray-400">NTP</span>
+          </div>
+          <div class="p-4 flex flex-col gap-3">
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Server 1</span>
+              <input id="ntp1" name="ntp1" type="text" maxlength="63" placeholder="192.168.1.1"
+                     class="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800
+                            px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+                            text-gray-900 dark:text-gray-100 min-h-[44px]" />
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Server 2</span>
+              <input id="ntp2" name="ntp2" type="text" maxlength="63" placeholder="pool.ntp.org"
+                     class="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800
+                            px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+                            text-gray-900 dark:text-gray-100 min-h-[44px]" />
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Server 3</span>
+              <input id="ntp3" name="ntp3" type="text" maxlength="63" placeholder="time.cloudflare.com"
+                     class="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800
+                            px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+                            text-gray-900 dark:text-gray-100 min-h-[44px]" />
+            </label>
+          </div>
+        </div>
+
         <!-- MQTT section -->
         <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
           <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
@@ -288,8 +318,9 @@
       });
 
       // ── Load current config ───────────────────────────────────────────────────
-      const fields = ['desc_field', 'wifi_ssid', 'wifi_pass', 'mqtt_server', 'mqtt_port', 'mqtt_user', 'mqtt_pass', 'tz_offset', 'dst_mode'];
+      const fields = ['desc_field', 'wifi_ssid', 'wifi_pass', 'ntp1', 'ntp2', 'ntp3', 'mqtt_server', 'mqtt_port', 'mqtt_user', 'mqtt_pass', 'tz_offset', 'dst_mode'];
       const apiKeys = { desc_field: 'desc', wifi_ssid: 'wifi_ssid', wifi_pass: 'wifi_pass',
+                        ntp1: 'ntp1', ntp2: 'ntp2', ntp3: 'ntp3',
                         mqtt_server: 'mqtt_server', mqtt_port: 'mqtt_port',
                         mqtt_user: 'mqtt_user', mqtt_pass: 'mqtt_pass',
                         tz_offset: 'tz_offset', dst_mode: 'dst_mode' };

@@ -25,6 +25,11 @@
 #define TZ_OFFSET   60  // UTC offset in minutes: 60 = UTC+1 (CET)
 #define TZ_DST_MODE  2  // 0=off, 1=always on, 2=auto EU rules
 
+// ── NTP ───────────────────────────────────────────────────────────────────────
+#define NTP1 "192.168.22.5"
+#define NTP2 "2.europe.pool.ntp.org"
+#define NTP3 "time.cloudflare.com"
+
 // ── MQTT ──────────────────────────────────────────────────────────────────────
 // Packet topic:  MQTT_TOPIC/<node_uid>/json
 // LWT topic:     MQTT_TOPIC_LWT/<hostname>/LWT

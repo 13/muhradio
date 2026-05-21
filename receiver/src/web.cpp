@@ -215,16 +215,18 @@ void Web::begin(Status& s) {
 
   // Settings — GET returns current config JSON, POST updates + reboots.
   _server.on("/api/settings", HTTP_GET, [](AsyncWebServerRequest* r) {
-    char buf[512];
+    char buf[750];
     snprintf(buf, sizeof(buf),
       "{\"wifi_ssid\":\"%s\",\"wifi_pass\":\"%s\","
       "\"mqtt_server\":\"%s\",\"mqtt_port\":%u,"
       "\"mqtt_user\":\"%s\",\"mqtt_pass\":\"%s\","
-      "\"desc\":\"%s\",\"tz_offset\":%d,\"dst_mode\":%u}",
+      "\"desc\":\"%s\",\"tz_offset\":%d,\"dst_mode\":%u,"
+      "\"ntp1\":\"%s\",\"ntp2\":\"%s\",\"ntp3\":\"%s\"}",
       Cfg::g.wifi_ssid, Cfg::g.wifi_pass,
       Cfg::g.mqtt_server, Cfg::g.mqtt_port,
       Cfg::g.mqtt_user,  Cfg::g.mqtt_pass,
-      Cfg::g.desc, (int)Cfg::g.tz_offset, (unsigned)Cfg::g.dst_mode);
+      Cfg::g.desc, (int)Cfg::g.tz_offset, (unsigned)Cfg::g.dst_mode,
+      Cfg::g.ntp1, Cfg::g.ntp2, Cfg::g.ntp3);
     r->send(200, "application/json", buf);
   });
 
@@ -239,6 +241,9 @@ void Web::begin(Status& s) {
     get("mqtt_user",   Cfg::g.mqtt_user,   sizeof(Cfg::g.mqtt_user));
     get("mqtt_pass",   Cfg::g.mqtt_pass,   sizeof(Cfg::g.mqtt_pass));
     get("desc",        Cfg::g.desc,        sizeof(Cfg::g.desc));
+    get("ntp1",        Cfg::g.ntp1,        sizeof(Cfg::g.ntp1));
+    get("ntp2",        Cfg::g.ntp2,        sizeof(Cfg::g.ntp2));
+    get("ntp3",        Cfg::g.ntp3,        sizeof(Cfg::g.ntp3));
     if (r->hasParam("mqtt_port", true))
       Cfg::g.mqtt_port  = (uint16_t)r->getParam("mqtt_port",  true)->value().toInt();
     if (r->hasParam("tz_offset", true))

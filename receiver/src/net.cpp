@@ -19,7 +19,7 @@
 static WiFiClient   _wifiClient;
 static PubSubClient _mqtt(_wifiClient);
 static WiFiUDP      _ntpUDP;
-static NTPClient    _ntp(_ntpUDP, "pool.ntp.org", 0);
+static NTPClient    _ntp(_ntpUDP, "", 0);
 
 static unsigned long _reconnectAt = 0;
 static unsigned long _markAt      = 0;
@@ -51,6 +51,17 @@ static long _localOffset(time_t utc) {
     case 2:  return base + (_euDstActive(utc) ? 3600L : 0L); // auto EU
     default: return base;                                     // always standard
   }
+}
+
+// Try NTP servers in order until one succeeds.
+static bool _ntpUpdate() {
+  const char* servers[] = { Cfg::g.ntp1, Cfg::g.ntp2, Cfg::g.ntp3 };
+  for (const char* srv : servers) {
+    if (!srv || !srv[0]) continue;
+    _ntp.setPoolServerName(srv);
+    if (_ntp.forceUpdate()) return true;
+  }
+  return false;
 }
 
 // ── Exported symbols ───────────────────────────────────────────────────────────
@@ -189,7 +200,7 @@ void Net::begin(Status& s) {
   _connectMqtt();
 
   _ntp.begin();
-  _ntp.update();
+  _ntpUpdate();
 
   _updateStatus(s);
   s.boottime = _ntp.getEpochTime(); // raw UTC — JS uptime = Date.now()/1000 - boottime
@@ -234,7 +245,7 @@ bool Net::loop(Status& s) {
   }
 
   _connectMqtt();
-  _ntp.update();
+  _ntpUpdate();
   _updateStatus(s);
   if (s.boottime == 0) {
     time_t t = _ntp.getEpochTime();

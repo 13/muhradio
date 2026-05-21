@@ -62,6 +62,9 @@ void Cfg::load() {
   strlcpy(g.desc,        DEVICE_DESCRIPTION, sizeof(g.desc));
   g.tz_offset = TZ_OFFSET;
   g.dst_mode  = TZ_DST_MODE;
+  strlcpy(g.ntp1, NTP1, sizeof(g.ntp1));
+  strlcpy(g.ntp2, NTP2, sizeof(g.ntp2));
+  strlcpy(g.ntp3, NTP3, sizeof(g.ntp3));
 
   // Override with persisted config if it exists
 #ifdef ESP8266
@@ -88,6 +91,9 @@ void Cfg::load() {
   _getStr(json.c_str(), "desc",        g.desc,        sizeof(g.desc));
   _getI16(json.c_str(), "tz_offset",  g.tz_offset);
   _getU8 (json.c_str(), "dst_mode",   g.dst_mode);
+  _getStr(json.c_str(), "ntp1",       g.ntp1,        sizeof(g.ntp1));
+  _getStr(json.c_str(), "ntp2",       g.ntp2,        sizeof(g.ntp2));
+  _getStr(json.c_str(), "ntp3",       g.ntp3,        sizeof(g.ntp3));
   Serial.println(F("> [Cfg] Loaded /config.json"));
 }
 
@@ -103,20 +109,26 @@ bool Cfg::save() {
   };
 
   char ws[128], wp[128], ms[128], mu[64], mp[128], ds[64];
+  char n1[128], n2[128], n3[128];
   esc(g.wifi_ssid,   ws, sizeof(ws));
   esc(g.wifi_pass,   wp, sizeof(wp));
   esc(g.mqtt_server, ms, sizeof(ms));
   esc(g.mqtt_user,   mu, sizeof(mu));
   esc(g.mqtt_pass,   mp, sizeof(mp));
   esc(g.desc,        ds, sizeof(ds));
+  esc(g.ntp1,        n1, sizeof(n1));
+  esc(g.ntp2,        n2, sizeof(n2));
+  esc(g.ntp3,        n3, sizeof(n3));
 
-  char buf[800];
+  char buf[1200];
   snprintf(buf, sizeof(buf),
     "{\"wifi_ssid\":\"%s\",\"wifi_pass\":\"%s\","
     "\"mqtt_server\":\"%s\",\"mqtt_port\":%u,"
     "\"mqtt_user\":\"%s\",\"mqtt_pass\":\"%s\","
-    "\"desc\":\"%s\",\"tz_offset\":%d,\"dst_mode\":%u}",
-    ws, wp, ms, g.mqtt_port, mu, mp, ds, (int)g.tz_offset, (unsigned)g.dst_mode);
+    "\"desc\":\"%s\",\"tz_offset\":%d,\"dst_mode\":%u,"
+    "\"ntp1\":\"%s\",\"ntp2\":\"%s\",\"ntp3\":\"%s\"}",
+    ws, wp, ms, g.mqtt_port, mu, mp, ds, (int)g.tz_offset, (unsigned)g.dst_mode,
+    n1, n2, n3);
 
   File f = LittleFS.open("/config.json", "w");
   if (!f) return false;
