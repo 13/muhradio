@@ -50,7 +50,7 @@ void loop() {
   if (Radio::pending()) {
     DecodedPacket dp = Radio::decode(Radio::take(), Net::now(), Net::nodeId);
     if (dp.valid) {
-      Net::publish(dp.topic, dp.json);
+      Net::publish(dp.topic, dp.json, dp.retained);
       myData.addPacket(dp.json);
       Web::notify(myData, Net::now());
     }

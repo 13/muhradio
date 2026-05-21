@@ -14,7 +14,7 @@ namespace Net {
   bool loop(Status& s);
 
   // Publish a payload to topic. Attempts reconnect if disconnected.
-  bool publish(const char* topic, const char* payload);
+  bool publish(const char* topic, const char* payload, bool retained = false);
 
   // Current NTP epoch time.
   time_t now();

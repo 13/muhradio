@@ -336,6 +336,8 @@ DecodedPacket Radio::decode(const RxPacket& pkt, time_t ts, const char* nodeId) 
   uint16_t       uid  = payload[0] | ((uint16_t)payload[1] << 8);
   uint8_t        pid  = payload[2];
   uint16_t       bmap = payload[3] | ((uint16_t)payload[4] << 8);
+  result.retained     = (bmap >> 15) & 1;
+  bmap               &= 0x7FFF;
   const uint8_t* vals = payload + 5;
 
   Serial.print(F("> [Radio] uid=0x")); Serial.print(uid, HEX);
