@@ -184,6 +184,9 @@
         T_BMP: '°C', P_BMP: 'hPa',
         T_BME: '°C', H_BME: '%', P_BME: 'hPa', G_BME: 'kΩ',
         VCC: 'V', RSSI: 'dBm', SNR: 'dB',
+        // Bresser 7-in-1
+        temp: '°C', hum: '%', wind: ' m/s', gust: ' m/s', dir: '°',
+        rain: ' mm', lux: ' lx', rssi: ' dBm',
       };
 
       const _PALETTE = [
@@ -209,15 +212,15 @@
         return _PALETTE[h % _PALETTE.length];
       }
       function chipColor(key, val) {
-        if (key === 'RSSI' || key === 'SNR')
+        if (key === 'RSSI' || key === 'SNR' || key === 'rssi')
           return 'bg-gray-100 dark:bg-gray-800/60 text-gray-500 dark:text-gray-400';
-        if (key === 'BUTTON' || key === 'SWITCH' || key === 'PIR' || key === 'RADAR')
+        if (key === 'BUTTON' || key === 'SWITCH' || key === 'PIR' || key === 'RADAR' || key === 'bat')
           return val
             ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
             : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300';
         const m = key.match(/_(BME|DS|SI|BMP)$/);
         if (m) return _hash(m[1]);
-        if (key === 'uid' || key === 'pid') return _hash(String(val));
+        if (key === 'uid' || key === 'pid' || key === 'id') return _hash(String(val));
         return _hash(key);
       }
 
@@ -289,9 +292,11 @@
           for (const raw of d.packets) {
             if (!raw) continue;
             const pkt = JSON.parse(raw);
-            const ts  = pkt.timestamp ? fmtTime(pkt.timestamp) : '';
+            const ts  = pkt.timestamp ? fmtTime(pkt.timestamp) : (pkt.ts ? fmtTime(pkt.ts) : '');
             delete pkt.RN;
+            delete pkt.node;
             delete pkt.timestamp;
+            delete pkt.ts;
 
             const row = document.createElement('div');
             row.className = 'px-4 py-3 flex flex-wrap items-start gap-2 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors';
