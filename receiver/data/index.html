@@ -15,9 +15,8 @@
 
   <body class="bg-gray-100 text-gray-900 dark:bg-gray-950 dark:text-gray-100 min-h-screen flex flex-col">
 
-    <div id="ws-bar" class="h-1 transition-colors duration-300"></div>
-
     <nav class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10">
+      <div id="ws-bar" class="h-1 transition-colors duration-300"></div>
       <div class="max-w-2xl mx-auto px-4 h-12 flex items-center justify-between">
         <a href="/" class="flex items-center gap-2">
           <img src="/images/muhradio.png" alt="" class="w-7 h-7" />
@@ -57,7 +56,11 @@
 
         <!-- Status card -->
         <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
-          <div class="divide-y divide-gray-100 dark:divide-gray-800">
+          <button class="card-hdr w-full px-4 py-3 flex items-center justify-between text-left">
+            <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</span>
+            <svg class="card-chevron w-4 h-4 text-gray-400 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+          </button>
+          <div class="border-t border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
 
             <div class="flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
               <span class="text-sm font-medium text-gray-500 dark:text-gray-400">SSID</span>
@@ -107,10 +110,11 @@
 
         <!-- Packets card -->
         <div id="packetsCard" class="hidden bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
-          <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+          <button class="card-hdr w-full px-4 py-3 flex items-center justify-between text-left">
             <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Packets</span>
-          </div>
-          <div id="packets" class="divide-y divide-gray-100 dark:divide-gray-800"></div>
+            <svg class="card-chevron w-4 h-4 text-gray-400 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+          </button>
+          <div id="packets" class="border-t border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800"></div>
         </div>
 
       </div>
@@ -182,12 +186,6 @@
         VCC: 'V', RSSI: 'dBm', SNR: 'dB',
       };
 
-      // Chip color — rules in priority order:
-      //   RSSI/SNR      → neutral gray (signal info, no semantic meaning)
-      //   binary fields → 0=red, non-zero=green
-      //   sensor groups → all chips from same sensor share one hashed color
-      //   uid/pid       → hashed by numeric value
-      //   everything else → hashed by key name
       const _PALETTE = [
         'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
         'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300',
@@ -211,20 +209,15 @@
         return _PALETTE[h % _PALETTE.length];
       }
       function chipColor(key, val) {
-        // Signal info — neutral
         if (key === 'RSSI' || key === 'SNR')
           return 'bg-gray-100 dark:bg-gray-800/60 text-gray-500 dark:text-gray-400';
-        // Binary state — semantic
         if (key === 'BUTTON' || key === 'SWITCH' || key === 'PIR' || key === 'RADAR')
           return val
             ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
             : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300';
-        // Sensor group — strip the prefix, hash the suffix
         const m = key.match(/_(BME|DS|SI|BMP)$/);
         if (m) return _hash(m[1]);
-        // uid/pid — hash by value so same node always same color
         if (key === 'uid' || key === 'pid') return _hash(String(val));
-        // Default — hash by key name
         return _hash(key);
       }
 
@@ -260,7 +253,7 @@
 
       function onMessage(d) {
         if (d.hostname) { elTitle.textContent = d.hostname; elHost.textContent = d.hostname; }
-        if (d.desc)        elDesc.textContent  = d.desc;
+        if (d.desc)        { elDesc.textContent = d.desc; elTitle.textContent = d.desc; }
         if (d.ssid)        elSsid.textContent  = d.ssid;
         if (d.ip)          elIp.textContent    = d.ip;
         if (d.resetreason) elReset.textContent = d.resetreason;
@@ -325,6 +318,16 @@
           }
         }
       }
+
+      // ── Collapsible cards ─────────────────────────────────────────────────────
+      document.querySelectorAll('.card-hdr').forEach(btn => {
+        const body = btn.nextElementSibling;
+        const ch   = btn.querySelector('.card-chevron');
+        btn.addEventListener('click', () => {
+          const nowHidden = body.classList.toggle('hidden');
+          ch.classList.toggle('-rotate-90', nowHidden);
+        });
+      });
 
       window.addEventListener('load', connect);
     </script>

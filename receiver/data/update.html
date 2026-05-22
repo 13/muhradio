@@ -15,9 +15,8 @@
 
   <body class="bg-gray-100 text-gray-900 dark:bg-gray-950 dark:text-gray-100 min-h-screen flex flex-col">
 
-    <div id="ws-bar" class="h-1 transition-colors duration-300"></div>
-
     <nav class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10">
+      <div id="ws-bar" class="h-1 transition-colors duration-300"></div>
       <div class="max-w-2xl mx-auto px-4 h-12 flex items-center justify-between">
         <a href="/" class="flex items-center gap-2">
           <img src="/images/muhradio.png" alt="" class="w-7 h-7" />
@@ -28,24 +27,27 @@
           <a href="/update.html" title="Firmware" class="text-gray-800 dark:text-gray-100 flex items-center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path d="M9.25 13.25a.75.75 0 0 0 1.5 0V4.636l2.955 3.129a.75.75 0 0 0 1.09-1.03l-4.25-4.5a.75.75 0 0 0-1.09 0l-4.25 4.5a.75.75 0 1 0 1.09 1.03L9.25 4.636v8.614Z"/><path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z"/></svg></a>
           <a href="/settings.html" title="Settings" class="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 flex items-center transition-colors"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" d="M7.84 1.804A1 1 0 0 1 8.82 1h2.36a1 1 0 0 1 .98.804l.331 1.652a6.993 6.993 0 0 1 1.929 1.115l1.598-.54a1 1 0 0 1 1.186.447l1.18 2.044a1 1 0 0 1-.205 1.251l-1.267 1.113a7.047 7.047 0 0 1 0 2.228l1.267 1.113a1 1 0 0 1 .206 1.25l-1.18 2.045a1 1 0 0 1-1.187.447l-1.598-.54a6.993 6.993 0 0 1-1.929 1.115l-.33 1.652a1 1 0 0 1-.98.804H8.82a1 1 0 0 1-.98-.804l-.331-1.652a6.993 6.993 0 0 1-1.929-1.115l-1.598.54a1 1 0 0 1-1.186-.447l-1.18-2.044a1 1 0 0 1 .205-1.251l1.267-1.114a7.05 7.05 0 0 1 0-2.227L1.821 7.773a1 1 0 0 1-.206-1.25l1.18-2.045a1 1 0 0 1 1.187-.447l1.598.54A6.992 6.992 0 0 1 7.51 3.456l.33-1.652ZM10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" clip-rule="evenodd"/></svg></a>
           <button id="themeBtn" class="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 flex items-center transition-colors"></button>
+          <button onclick="location.reload()" title="Refresh" class="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 flex items-center transition-colors"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 0 1-9.201 2.466l-.312-.311h2.433a.75.75 0 0 0 0-1.5H3.989a.75.75 0 0 0-.75.75v4.242a.75.75 0 0 0 1.5 0v-2.43l.31.31a7 7 0 0 0 11.712-3.138.75.75 0 0 0-1.449-.39Zm1.23-3.723a.75.75 0 0 0 .219-.53V2.929a.75.75 0 0 0-1.5 0V5.36l-.31-.31A7 7 0 0 0 3.239 8.188a.75.75 0 1 0 1.448.389A5.5 5.5 0 0 1 13.89 6.11l.311.31h-2.432a.75.75 0 0 0 0 1.5h4.243a.75.75 0 0 0 .53-.219Z" clip-rule="evenodd"/></svg></button>
         </div>
       </div>
     </nav>
 
     <!-- Tailwind safelist -->
     <div class="hidden bg-green-500 bg-red-500 text-green-600 text-red-600 dark:text-green-400 dark:text-red-400
-                border-blue-400 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-600"></div>
+                border-blue-400 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-600
+                bg-green-100 dark:bg-green-900/40"></div>
 
     <main class="flex-1 py-4">
       <div class="max-w-2xl mx-auto px-4 flex flex-col gap-4">
 
         <!-- Upload card -->
         <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
-          <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+          <button class="card-hdr w-full px-4 py-3 flex items-center justify-between text-left">
             <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Firmware Update</span>
-          </div>
+            <svg class="card-chevron w-4 h-4 text-gray-400 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+          </button>
 
-          <div class="p-4 flex flex-col gap-3">
+          <div class="border-t border-gray-100 dark:border-gray-800 p-4 flex flex-col gap-3">
             <!-- Drop zone -->
             <div id="dropZone"
                  class="relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed
@@ -75,10 +77,11 @@
 
         <!-- Actions card -->
         <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
-          <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+          <button class="card-hdr w-full px-4 py-3 flex items-center justify-between text-left">
             <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Device</span>
-          </div>
-          <div class="p-4">
+            <svg class="card-chevron w-4 h-4 text-gray-400 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+          </button>
+          <div class="border-t border-gray-100 dark:border-gray-800 p-4">
             <a href="/reboot"
                class="flex items-center justify-center w-full
                       bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700
@@ -103,6 +106,13 @@
         <div id="spinner"
              class="w-10 h-10 border-4 border-blue-500 border-t-transparent
                     rounded-full animate-spin mx-auto mb-4"></div>
+        <div id="successIcon"
+             class="hidden w-10 h-10 mx-auto mb-4 flex items-center justify-center
+                    rounded-full bg-green-100 dark:bg-green-900/40">
+          <svg class="w-6 h-6 text-green-600 dark:text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/>
+          </svg>
+        </div>
         <p id="modalStep" class="font-semibold text-gray-900 dark:text-white text-base"></p>
         <p id="modalMsg"  class="text-gray-500 dark:text-gray-400 text-sm mt-1"></p>
       </div>
@@ -126,18 +136,19 @@
       themeBtn.addEventListener('click', () => applyTheme(!html.classList.contains('dark')));
 
       // ── DOM refs ──────────────────────────────────────────────────────────────
-      const elTitle    = document.querySelector('title');
-      const elDesc     = document.getElementById('desc');
-      const elVersion  = document.getElementById('version');
-      const wsBar      = document.getElementById('ws-bar');
-      const elFile     = document.getElementById('file');
-      const elHint     = document.getElementById('fileHint');
-      const elDropZone = document.getElementById('dropZone');
-      const elUploadBtn = document.getElementById('uploadBtn');
-      const elModalEl  = document.getElementById('updateModal');
-      const elStep     = document.getElementById('modalStep');
-      const elMsg      = document.getElementById('modalMsg');
-      const elSpinner  = document.getElementById('spinner');
+      const elTitle       = document.querySelector('title');
+      const elDesc        = document.getElementById('desc');
+      const elVersion     = document.getElementById('version');
+      const wsBar         = document.getElementById('ws-bar');
+      const elFile        = document.getElementById('file');
+      const elHint        = document.getElementById('fileHint');
+      const elDropZone    = document.getElementById('dropZone');
+      const elUploadBtn   = document.getElementById('uploadBtn');
+      const elModalEl     = document.getElementById('updateModal');
+      const elStep        = document.getElementById('modalStep');
+      const elMsg         = document.getElementById('modalMsg');
+      const elSpinner     = document.getElementById('spinner');
+      const elSuccessIcon = document.getElementById('successIcon');
 
       // ── WebSocket ─────────────────────────────────────────────────────────────
       let prevVersion = null;
@@ -156,7 +167,7 @@
         ws.onmessage = (e) => {
           const d = JSON.parse(e.data);
           if (d.hostname) elTitle.textContent = d.hostname;
-          if (d.desc) elDesc.textContent = d.desc;
+          if (d.desc) { elDesc.textContent = d.desc; elTitle.textContent = d.desc; }
           if (d.version && d.version !== prevVersion) {
             prevVersion = d.version;
             const a = document.createElement('a');
@@ -213,6 +224,7 @@
         elStep.textContent = step;
         elMsg.textContent  = msg;
         elSpinner.classList.remove('hidden');
+        elSuccessIcon.classList.add('hidden');
         elModalEl.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
       }
@@ -220,6 +232,12 @@
         elStep.textContent = step;
         elMsg.textContent  = msg;
         if (hideSpinner) elSpinner.classList.add('hidden');
+      }
+      function showModalSuccess(step, msg = '') {
+        elStep.textContent = step;
+        elMsg.textContent  = msg;
+        elSpinner.classList.add('hidden');
+        elSuccessIcon.classList.remove('hidden');
       }
       function hideModal() {
         elModalEl.classList.add('hidden');
@@ -259,9 +277,12 @@
             if (!data.success) throw new Error(data.message ?? 'Upload failed');
           }
 
-          setModalMsg('All files uploaded', 'Rebooting…');
-          await fetch('/reboot').catch(() => {});
+          showModalSuccess('Upload successful!', 'All files written.');
+          await new Promise(r => setTimeout(r, 1500));
+          elSuccessIcon.classList.add('hidden');
+          elSpinner.classList.remove('hidden');
           setModalMsg('Rebooting…', 'Waiting for device to come back online.');
+          await fetch('/reboot').catch(() => {});
           waitForReboot();
 
         } catch (err) {
@@ -272,6 +293,16 @@
           elMsg.replaceChildren(p);
           setTimeout(hideModal, 5000);
         }
+      });
+
+      // ── Collapsible cards ─────────────────────────────────────────────────────
+      document.querySelectorAll('.card-hdr').forEach(btn => {
+        const body = btn.nextElementSibling;
+        const ch   = btn.querySelector('.card-chevron');
+        btn.addEventListener('click', () => {
+          const nowHidden = body.classList.toggle('hidden');
+          ch.classList.toggle('-rotate-90', nowHidden);
+        });
       });
 
       window.addEventListener('load', connect);
