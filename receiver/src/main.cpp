@@ -39,7 +39,7 @@ void loop() {
 
 #ifdef USE_BRESSER
   if (Bresser::pending()) {
-    BresserPacket dp = Bresser::decode(Net::now(), Net::nodeId);
+    BresserPacket dp = Bresser::decode(Net::nowUtc(), Net::nodeId);
     if (dp.valid) {
       Net::publish(dp.topic, dp.json);
       myData.addPacket(dp.json);
@@ -48,7 +48,7 @@ void loop() {
   }
 #else
   if (Radio::pending()) {
-    DecodedPacket dp = Radio::decode(Radio::take(), Net::now(), Net::nodeId);
+    DecodedPacket dp = Radio::decode(Radio::take(), Net::nowUtc(), Net::nodeId);
     if (dp.valid) {
       Net::publish(dp.topic, dp.json, dp.retained);
       myData.addPacket(dp.json);

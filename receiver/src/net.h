@@ -16,6 +16,9 @@ namespace Net {
   // Publish a payload to topic. Attempts reconnect if disconnected.
   bool publish(const char* topic, const char* payload, bool retained = false);
 
-  // Current NTP epoch time.
+  // Current NTP epoch time adjusted to local time (for web display).
   time_t now();
+
+  // Raw UTC epoch time (for MQTT timestamps).
+  time_t nowUtc();
 }

@@ -268,3 +268,7 @@ time_t Net::now() {
   time_t utc = _ntp.getEpochTime();
   return utc + _localOffset(utc);
 }
+
+time_t Net::nowUtc() {
+  return _ntp.getEpochTime();
+}
