@@ -164,7 +164,7 @@
 
       function fmtTime(epoch) {
         const d = new Date(epoch * 1000);
-        return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+        return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
       }
 
       let _boottime = 0;
@@ -186,7 +186,7 @@
         VCC: 'V', RSSI: 'dBm', SNR: 'dB',
         // Bresser 7-in-1
         temp: '°C', hum: '%', wind: ' m/s', gust: ' m/s', dir: '°',
-        rain: ' mm', lux: ' lx', rssi: ' dBm',
+        rain: ' mm', lux: ' klx', rssi: ' dBm',
       };
 
       const _PALETTE = [

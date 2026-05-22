@@ -98,12 +98,12 @@ static bool decode7in1(const uint8_t* raw, int rssi,
     "{\"id\":\"%04X\",\"ch\":%u,\"bat\":%s,"
     "\"temp\":%.1f,\"hum\":%d,"
     "\"wind\":%.1f,\"gust\":%.1f,\"dir\":%d,"
-    "\"rain\":%.1f,\"uv\":%.1f,\"lux\":%d,"
+    "\"rain\":%.1f,\"uv\":%.1f,\"lux\":%.1f,"
     "\"rssi\":%d,\"node\":\"%s\",\"ts\":%ld}",
     id, chan, bat_ok ? "1" : "0",
     temp_c, humidity,
     wavg * 0.1f, wgst * 0.1f, wdir,
-    rain_raw * 0.1f, uv_raw * 0.1f, lux_raw,
+    rain_raw * 0.1f, uv_raw * 0.1f, lux_raw * 0.001f,
     rssi, nodeId, (long)ts);
 
   out.valid = true;

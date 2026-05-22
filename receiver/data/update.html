@@ -273,8 +273,31 @@
             setModalMsg(`(${i + 1}/${queue.length}) ${f.name}`, 'Please wait…');
             const fd = new FormData();
             fd.append('file', f, f.name);
-            const data = await fetch('/update', { method: 'POST', body: fd }).then(r => r.json());
-            if (!data.success) throw new Error(data.message ?? 'Upload failed');
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout per file
+            
+            try {
+              const response = await fetch('/update', { 
+                method: 'POST', 
+                body: fd,
+                signal: controller.signal
+              });
+              clearTimeout(timeoutId);
+              
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+              }
+              
+              const data = await response.json();
+              if (!data.success) throw new Error(data.message ?? 'Upload failed');
+            } catch (fetchErr) {
+              clearTimeout(timeoutId);
+              if (fetchErr.name === 'AbortError') {
+                throw new Error('Upload timeout - device took too long to respond. Check device logs.');
+              }
+              throw fetchErr;
+            }
           }
 
           showModalSuccess('Upload successful!', 'All files written.');

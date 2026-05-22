@@ -35,7 +35,7 @@ void loop() {
   Web::loop();
 
   if (Net::loop(myData))
-    Web::notify(myData, Net::now());
+    Web::notify(myData, Net::nowUtc());
 
 #ifdef USE_BRESSER
   if (Bresser::pending()) {
@@ -43,7 +43,7 @@ void loop() {
     if (dp.valid) {
       Net::publish(dp.topic, dp.json);
       myData.addPacket(dp.json);
-      Web::notify(myData, Net::now());
+      Web::notify(myData, Net::nowUtc());
     }
   }
 #else
@@ -52,7 +52,7 @@ void loop() {
     if (dp.valid) {
       Net::publish(dp.topic, dp.json, dp.retained);
       myData.addPacket(dp.json);
-      Web::notify(myData, Net::now());
+      Web::notify(myData, Net::nowUtc());
     }
   }
 #endif

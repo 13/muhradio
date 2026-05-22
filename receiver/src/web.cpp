@@ -204,6 +204,9 @@ void Web::begin(Status& s) {
             left = 0;
             break;
         }
+        
+        // Feed watchdog and allow WiFi stack to process on ESP8266
+        yield();
       }
 
       if (final) {
