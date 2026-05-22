@@ -339,7 +339,11 @@
         .then(d => {
           for (const id of fields) {
             const el = document.getElementById(id);
-            if (el) el.value = d[apiKeys[id]] ?? '';
+            if (!el) continue;
+            const val = d[apiKeys[id]] ?? '';
+            el.value = val;
+            if (val && el.type !== 'password' && el.tagName !== 'SELECT')
+              el.placeholder = val;
           }
         })
         .catch(() => { statusMsg.textContent = 'Could not load current settings.'; });
