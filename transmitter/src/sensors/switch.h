@@ -24,9 +24,9 @@ namespace Switch {
     if (!_changed) return;
     bool s = _state;
     _changed = false;
-    pkt.addU8(Field::SWITCH, s ? 1 : 0);
+    pkt.addU8(Field::SWITCH, s ? 0 : 1);
 #ifdef VERBOSE
-    Serial.print(F("Switch: ")); Serial.println(s ? 1 : 0);
+    Serial.print(F("Switch: ")); Serial.println(s ? 0 : 1);
 #endif
   }
 }
