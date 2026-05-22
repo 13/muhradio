@@ -35,11 +35,26 @@ print(f"'-DVERSIONTAG=\"{tag}\"'")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
     import pio_secrets
-    wp  = getattr(pio_secrets, 'WIFI_PASS', None)
-    mp  = getattr(pio_secrets, 'MQTT_PASS', None)
-    key = getattr(pio_secrets, 'AES_KEY',   None)
-    if wp:  print(f"'-DWIFI_PASS=\"{wp}\"'")
-    if mp:  print(f"'-DMQTT_PASS=\"{mp}\"'")
+    def _s(name):  return getattr(pio_secrets, name, None) or None
+    def _i(name):
+        v = getattr(pio_secrets, name, None)
+        return v if isinstance(v, int) else None
+
+    if _s('WIFI_SSID'):         print(f"'-DWIFI_SSID=\"{_s('WIFI_SSID')}\"'")
+    if _s('WIFI_PASS'):         print(f"'-DWIFI_PASS=\"{_s('WIFI_PASS')}\"'")
+    if _s('MQTT_SERVER'):       print(f"'-DMQTT_SERVER=\"{_s('MQTT_SERVER')}\"'")
+    if _i('MQTT_PORT'):         print(f"'-DMQTT_PORT={_i('MQTT_PORT')}'")
+    if _s('MQTT_USER') is not None and _s('MQTT_USER') != '':
+                                print(f"'-DMQTT_USER=\"{_s('MQTT_USER')}\"'")
+    if _s('MQTT_PASS'):         print(f"'-DMQTT_PASS=\"{_s('MQTT_PASS')}\"'")
+    if _s('MQTT_TOPIC'):        print(f"'-DMQTT_TOPIC=\"{_s('MQTT_TOPIC')}\"'")
+    if _s('MQTT_TOPIC_LWT'):    print(f"'-DMQTT_TOPIC_LWT=\"{_s('MQTT_TOPIC_LWT')}\"'")
+    if _s('NTP1'):              print(f"'-DNTP1=\"{_s('NTP1')}\"'")
+    if _s('NTP2'):              print(f"'-DNTP2=\"{_s('NTP2')}\"'")
+    if _s('NTP3'):              print(f"'-DNTP3=\"{_s('NTP3')}\"'")
+    if _i('TZ_OFFSET') is not None: print(f"'-DTZ_OFFSET={_i('TZ_OFFSET')}'")
+    if _i('TZ_DST_MODE') is not None: print(f"'-DTZ_DST_MODE={_i('TZ_DST_MODE')}'")
+    key = _s('AES_KEY')
     if key:
         print("'-DUSE_CRYPTO'")
         print(f"'-DAES_KEY=\"{key}\"'")

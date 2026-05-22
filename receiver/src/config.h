@@ -14,7 +14,9 @@
 #define DEVICE_DESCRIPTION "Receiver"
 
 // ── WiFi ──────────────────────────────────────────────────────────────────────
-#define WIFI_SSID "muhxnetwork"
+#ifndef WIFI_SSID
+#  define WIFI_SSID "muhxnetwork"
+#endif
 #ifndef WIFI_PASS
 #  define WIFI_PASS ""
 #endif
@@ -22,22 +24,42 @@
 // ── Time ──────────────────────────────────────────────────────────────────────
 // Europe/Rome: CET = UTC+1.  DST mode 2 = auto EU (last Sun Mar / last Sun Oct).
 // Override at runtime via the Settings page; these are first-boot defaults only.
-#define TZ_OFFSET   60  // UTC offset in minutes: 60 = UTC+1 (CET)
-#define TZ_DST_MODE  2  // 0=off, 1=always on, 2=auto EU rules
+#ifndef TZ_OFFSET
+#  define TZ_OFFSET   60  // UTC offset in minutes: 60 = UTC+1 (CET)
+#endif
+#ifndef TZ_DST_MODE
+#  define TZ_DST_MODE  2  // 0=off, 1=always on, 2=auto EU rules
+#endif
 
 // ── NTP ───────────────────────────────────────────────────────────────────────
-#define NTP1 "192.168.22.5"
-#define NTP2 "2.europe.pool.ntp.org"
-#define NTP3 "time.cloudflare.com"
+#ifndef NTP1
+#  define NTP1 "192.168.22.5"
+#endif
+#ifndef NTP2
+#  define NTP2 "2.europe.pool.ntp.org"
+#endif
+#ifndef NTP3
+#  define NTP3 "time.cloudflare.com"
+#endif
 
 // ── MQTT ──────────────────────────────────────────────────────────────────────
 // Packet topic:  MQTT_TOPIC/<node_uid>/json
 // LWT topic:     MQTT_TOPIC_LWT/<hostname>/LWT
-#define MQTT_SERVER    "192.168.22.5"
-#define MQTT_PORT      1883
-#define MQTT_USER      ""
-#ifndef MQTT_PASS
-#  define MQTT_PASS    ""
+#ifndef MQTT_SERVER
+#  define MQTT_SERVER    "192.168.22.5"
 #endif
-#define MQTT_TOPIC     "muh/sensors"
-#define MQTT_TOPIC_LWT "muh/esp"
+#ifndef MQTT_PORT
+#  define MQTT_PORT      1883
+#endif
+#ifndef MQTT_USER
+#  define MQTT_USER      ""
+#endif
+#ifndef MQTT_PASS
+#  define MQTT_PASS      ""
+#endif
+#ifndef MQTT_TOPIC
+#  define MQTT_TOPIC     "muh/sensors"
+#endif
+#ifndef MQTT_TOPIC_LWT
+#  define MQTT_TOPIC_LWT "muh/esp"
+#endif
