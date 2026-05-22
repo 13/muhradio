@@ -5,13 +5,14 @@
 #include <ELECHOUSE_CC1101_SRC_DRV.h>
 
 // Bresser 7-in-1 protocol (model 7003600)
-// 868.3 MHz · 8.21 kbps FSK · sync AA2D · 27-byte fixed packet
-// First FIFO byte is 0xD4 (second half of preamble/sync);
-// remaining 26 bytes are the payload, whitened with XOR 0xAA.
+// 868.3 MHz · 8.21 kbps FSK · sync AA2D · 26-byte payload.
+// The sync match consumes the preamble through 0xD4, so the FIFO delivers the
+// 26-byte payload starting at byte 0 (no leading marker), whitened with XOR 0xAA.
+// We read one extra byte (27) and ignore it.
 // Integrity: LFSR-16 digest (gen=0x8810, key=0xba95, final_xor=0x6df1).
 
-#define BRESSER_PKT_LEN  27   // fixed CC1101 packet length
-#define PAYLOAD_LEN      26   // bytes after the leading 0xD4
+#define BRESSER_PKT_LEN  27   // fixed CC1101 packet length (1 trailing byte ignored)
+#define PAYLOAD_LEN      26   // whitened payload bytes, from FIFO byte 0
 
 static bool    _ready = false;
 static uint8_t _rxBuf[BRESSER_PKT_LEN];
@@ -42,15 +43,13 @@ static uint16_t lfsr16(const uint8_t* msg, unsigned n, uint16_t gen, uint16_t ke
 }
 
 // ── Decoder ───────────────────────────────────────────────────────────────────
-// raw  — 27 bytes from CC1101 FIFO (raw[0] == 0xD4 sync byte)
+// raw  — CC1101 FIFO; raw[0] is the first whitened payload byte
 // rssi — signal strength in dBm
 // Returns true and fills `out` on success.
 static bool decode7in1(const uint8_t* raw, int rssi,
                        time_t ts, const char* nodeId, BresserPacket& out) {
-  if (raw[0] != 0xD4) return false;
-
   // De-whiten 26-byte payload
-  const uint8_t* msg = raw + 1;
+  const uint8_t* msg = raw;
   uint8_t w[PAYLOAD_LEN];
   for (int i = 0; i < PAYLOAD_LEN; i++) w[i] = msg[i] ^ 0xAA;
 
@@ -58,8 +57,10 @@ static bool decode7in1(const uint8_t* raw, int rssi,
   uint16_t chk    = ((uint16_t)w[0] << 8) | w[1];
   uint16_t digest = lfsr16(&w[2], 23, 0x8810, 0xba95);
   if ((chk ^ digest) != 0x6df1) {
+#ifdef DEBUG
     Serial.printf("> [Bresser] digest %04X^%04X=%04X (want 6DF1)\n",
                   chk, digest, chk ^ digest);
+#endif
     return false;
   }
 
@@ -67,7 +68,9 @@ static bool decode7in1(const uint8_t* raw, int rssi,
   uint8_t s_type = msg[6] >> 4;
   if (s_type != 1) {
     // Only handle SENSOR_TYPE_WEATHER1; skip CO2, VOC, PM subtypes
+#ifdef DEBUG
     Serial.printf("> [Bresser] s_type=%u (skip)\n", s_type);
+#endif
     return false;
   }
 
@@ -202,7 +205,13 @@ BresserPacket Bresser::decode(time_t ts, const char* nodeId) {
   BresserPacket pkt = {};
   _ready = false;
   if (!decode7in1(_rxBuf, _rxRssi, ts, nodeId, pkt)) {
-    Serial.printf("> [Bresser] decode failed (b0=0x%02X)\n", _rxBuf[0]);
+#ifdef DEBUG
+    Serial.printf("> [Bresser] decode failed (b0=0x%02X rssi=%d)\n  raw:", _rxBuf[0], _rxRssi);
+    for (int i = 0; i < BRESSER_PKT_LEN; i++) Serial.printf(" %02X", _rxBuf[i]);
+    Serial.print("\n  dwh:");
+    for (int i = 0; i < PAYLOAD_LEN; i++) Serial.printf(" %02X", _rxBuf[i] ^ 0xAA);
+    Serial.println();
+#endif
   } else {
     Serial.printf("> [Bresser] %s\n", pkt.json);
   }
