@@ -49,6 +49,9 @@
       dark:text-red-300 dark:text-orange-300 dark:text-amber-300 dark:text-yellow-300 dark:text-lime-300
       dark:text-green-300 dark:text-teal-300 dark:text-cyan-300 dark:text-sky-300 dark:text-blue-300
       dark:text-indigo-300 dark:text-violet-300 dark:text-purple-300 dark:text-pink-300 dark:text-rose-300
+      grid grid-cols-8 gap-x-4 gap-y-2 block shrink-0 mt-0.5 mb-2 pt-2 mt-2
+      text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100
+      text-xs text-gray-400 dark:text-gray-500
     "></div>
 
     <main class="flex-1 py-4">
@@ -186,8 +189,16 @@
         VCC: 'V', RSSI: 'dBm', SNR: 'dB',
         // Bresser 7-in-1
         temp: '°C', hum: '%', wind: ' m/s', gust: ' m/s', dir: '°',
-        rain: ' mm', lux: ' klx', rssi: ' dBm',
+        rain: ' mm', lux: ' klx', uv: '', rssi: ' dBm',
       };
+
+      // Packet field categories for structured rendering
+      const PKT_ID     = new Set(['id', 'uid', 'pid']);
+      const PKT_SIGNAL = new Set(['rssi', 'RSSI', 'SNR']);
+      const PKT_SENSOR = new Set([
+        'temp', 'hum', 'wind', 'gust', 'dir', 'rain', 'lux', 'uv',
+        'T_SI', 'H_SI', 'T_DS', 'T_BMP', 'P_BMP', 'T_BME', 'H_BME', 'P_BME', 'G_BME', 'VCC',
+      ]);
 
       const _PALETTE = [
         'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
@@ -293,33 +304,63 @@
             if (!raw) continue;
             const pkt = JSON.parse(raw);
             const ts  = pkt.timestamp ? fmtTime(pkt.timestamp) : (pkt.ts ? fmtTime(pkt.ts) : '');
-            delete pkt.RN;
-            delete pkt.node;
-            delete pkt.timestamp;
-            delete pkt.ts;
+            delete pkt.RN; delete pkt.node; delete pkt.timestamp; delete pkt.ts;
 
-            const row = document.createElement('div');
-            row.className = 'px-4 py-3 flex flex-wrap items-start gap-2 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors';
-
-            if (ts) {
-              const tspan = document.createElement('span');
-              tspan.className   = 'text-xs font-mono tabular-nums self-center shrink-0 w-16 text-gray-700 dark:text-gray-200 font-semibold';
-              tspan.textContent = ts;
-              row.appendChild(tspan);
-            }
-
-            const chips = document.createElement('div');
-            chips.className = 'flex flex-wrap gap-1.5';
-
+            const ids = [], sigs = [], chips = [];
             for (const [k, v] of Object.entries(pkt)) {
-              const chip = document.createElement('span');
-              chip.className   = `inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-medium ${chipColor(k, v)}`;
-              const unit = UNITS[k] ?? '';
-              chip.textContent = `${k}: ${v}${unit}`;
-              chips.appendChild(chip);
+              if (PKT_ID.has(k))          ids.push([k, v]);
+              else if (PKT_SIGNAL.has(k)) sigs.push([k, v]);
+              else                        chips.push([k, v]);
             }
-            row.appendChild(chips);
-            elPackets.appendChild(row);
+
+            const card = document.createElement('div');
+            card.className = 'px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors';
+
+            // Header: timestamp + id chips left, signal quality right
+            const hdr = document.createElement('div');
+            hdr.className = 'flex items-center justify-between mb-2';
+            const hdrL = document.createElement('div');
+            hdrL.className = 'flex items-center gap-2';
+            if (ts) {
+              const t = document.createElement('span');
+              t.className = 'text-xs font-mono tabular-nums font-semibold text-gray-500 dark:text-gray-400 shrink-0';
+              t.textContent = ts;
+              hdrL.appendChild(t);
+            }
+            for (const [k, v] of ids) {
+              const c = document.createElement('span');
+              c.className = `inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${chipColor(k, v)}`;
+              c.textContent = String(v);
+              hdrL.appendChild(c);
+            }
+            hdr.appendChild(hdrL);
+            if (sigs.length) {
+              const sr = document.createElement('div');
+              sr.className = 'flex items-center gap-2 shrink-0';
+              for (const [k, v] of sigs) {
+                const s = document.createElement('span');
+                s.className = 'text-xs font-mono text-gray-400 dark:text-gray-500';
+                s.textContent = `${v}${UNITS[k] ?? ''}`;
+                sr.appendChild(s);
+              }
+              hdr.appendChild(sr);
+            }
+            card.appendChild(hdr);
+
+            // All remaining fields as chips
+            if (chips.length) {
+              const strip = document.createElement('div');
+              strip.className = 'flex flex-wrap gap-1.5';
+              for (const [k, v] of chips) {
+                const c = document.createElement('span');
+                c.className = `inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${chipColor(k, v)}`;
+                c.textContent = `${k}: ${v}${UNITS[k] ?? ''}`;
+                strip.appendChild(c);
+              }
+              card.appendChild(strip);
+            }
+
+            elPackets.appendChild(card);
           }
         }
       }
