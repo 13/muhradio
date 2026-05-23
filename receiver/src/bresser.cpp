@@ -14,8 +14,13 @@
 #define BRESSER_PKT_LEN  27   // fixed CC1101 packet length (1 trailing byte ignored)
 #define PAYLOAD_LEN      26   // whitened payload bytes, from FIFO byte 0
 
+// ELECHOUSE_cc1101.ReceiveData() reads a FIFO byte as the packet length and then
+// burst-reads that many bytes into rxBuffer. In fixed-length mode there is no length
+// prefix, so a noise packet can make it request up to 255 bytes. The buffer must hold
+// the full 8-bit worst case or the read overflows into adjacent globals (corrupting
+// Cfg::g). Only the first BRESSER_PKT_LEN bytes are ever decoded.
 static bool    _ready = false;
-static uint8_t _rxBuf[BRESSER_PKT_LEN];
+static uint8_t _rxBuf[256];
 static int     _rxRssi;
 
 // ── ISR ───────────────────────────────────────────────────────────────────────

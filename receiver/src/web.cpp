@@ -31,15 +31,31 @@ static bool           _pendingReboot = false;
 // 2 KB static buffer — serialised once per notify call, never on heap.
 static char _wsBuf[2048];
 
-// Append src to dst (max dstSize), escaping JSON special chars. Returns new length.
+// Append src to dst (bounded by dstSize), producing valid JSON-string content.
+// Escapes control chars as \u00XX and replaces invalid UTF-8 bytes with '?', so a
+// corrupted config value can never yield unparseable JSON. Returns new length.
 static size_t jsonAppendEscaped(char* dst, size_t len, size_t dstSize, const char* src) {
-  for (; *src && len + 2 < dstSize; ++src) {
-    char c = *src;
-    if (c == '"' || c == '\\') { dst[len++] = '\\'; dst[len++] = c; }
-    else if (c == '\n')         { dst[len++] = '\\'; dst[len++] = 'n'; }
-    else if (c == '\r')         { dst[len++] = '\\'; dst[len++] = 'r'; }
-    else if (c == '\t')         { dst[len++] = '\\'; dst[len++] = 't'; }
-    else                        { dst[len++] = c; }
+  static const char hex[] = "0123456789abcdef";
+  const unsigned char* p = (const unsigned char*)src;
+  while (*p && len + 6 < dstSize) {
+    unsigned char c = *p;
+    if (c == '"' || c == '\\') { dst[len++] = '\\'; dst[len++] = c; p++; }
+    else if (c == '\n')        { dst[len++] = '\\'; dst[len++] = 'n'; p++; }
+    else if (c == '\r')        { dst[len++] = '\\'; dst[len++] = 'r'; p++; }
+    else if (c == '\t')        { dst[len++] = '\\'; dst[len++] = 't'; p++; }
+    else if (c < 0x20) {
+      dst[len++] = '\\'; dst[len++] = 'u'; dst[len++] = '0'; dst[len++] = '0';
+      dst[len++] = hex[c >> 4]; dst[len++] = hex[c & 0xF]; p++;
+    }
+    else if (c < 0x80) { dst[len++] = (char)c; p++; }
+    else {
+      // Multi-byte UTF-8: pass through only if the continuation bytes are valid.
+      int n = (c >= 0xF0) ? 3 : (c >= 0xE0) ? 2 : (c >= 0xC0) ? 1 : -1;
+      bool ok = n > 0;
+      for (int i = 1; ok && i <= n; i++) if ((p[i] & 0xC0) != 0x80) ok = false;
+      if (ok) { for (int i = 0; i <= n; i++) dst[len++] = (char)p[i]; p += n + 1; }
+      else    { dst[len++] = '?'; p++; }
+    }
   }
   dst[len] = '\0';
   return len;
@@ -283,6 +299,12 @@ void Web::begin(Status& s) {
     r->send(200, "application/json",
       ok ? "{\"success\":true}" : "{\"success\":false,\"message\":\"Save failed\"}");
     if (ok) _pendingReboot = true;
+  });
+
+  _server.on("/api/reset", HTTP_POST, [](AsyncWebServerRequest* r) {
+    LittleFS.remove("/config.json");
+    r->send(200, "application/json", "{\"success\":true}");
+    _pendingReboot = true;
   });
 
   // Static files from LittleFS — registered last so API routes take priority.
