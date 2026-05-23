@@ -31,6 +31,20 @@ static bool           _pendingReboot = false;
 // 2 KB static buffer — serialised once per notify call, never on heap.
 static char _wsBuf[2048];
 
+// Append src to dst (max dstSize), escaping JSON special chars. Returns new length.
+static size_t jsonAppendEscaped(char* dst, size_t len, size_t dstSize, const char* src) {
+  for (; *src && len + 2 < dstSize; ++src) {
+    char c = *src;
+    if (c == '"' || c == '\\') { dst[len++] = '\\'; dst[len++] = c; }
+    else if (c == '\n')         { dst[len++] = '\\'; dst[len++] = 'n'; }
+    else if (c == '\r')         { dst[len++] = '\\'; dst[len++] = 'r'; }
+    else if (c == '\t')         { dst[len++] = '\\'; dst[len++] = 't'; }
+    else                        { dst[len++] = c; }
+  }
+  dst[len] = '\0';
+  return len;
+}
+
 // ── OTA bundle state ───────────────────────────────────────────────────────────
 // Bundle format (produced by `pio run -t otabundle`):
 //   [magic:4 "MRBF"][fw_size:4 LE][fs_size:4 LE][firmware][littlefs]
@@ -218,18 +232,30 @@ void Web::begin(Status& s) {
 
   // Settings — GET returns current config JSON, POST updates + reboots.
   _server.on("/api/settings", HTTP_GET, [](AsyncWebServerRequest* r) {
-    char buf[750];
-    snprintf(buf, sizeof(buf),
-      "{\"wifi_ssid\":\"%s\",\"wifi_pass\":\"%s\","
-      "\"mqtt_server\":\"%s\",\"mqtt_port\":%u,"
-      "\"mqtt_user\":\"%s\",\"mqtt_pass\":\"%s\","
-      "\"desc\":\"%s\",\"tz_offset\":%d,\"dst_mode\":%u,"
-      "\"ntp1\":\"%s\",\"ntp2\":\"%s\",\"ntp3\":\"%s\"}",
-      Cfg::g.wifi_ssid, Cfg::g.wifi_pass,
-      Cfg::g.mqtt_server, Cfg::g.mqtt_port,
-      Cfg::g.mqtt_user,  Cfg::g.mqtt_pass,
-      Cfg::g.desc, (int)Cfg::g.tz_offset, (unsigned)Cfg::g.dst_mode,
-      Cfg::g.ntp1, Cfg::g.ntp2, Cfg::g.ntp3);
+    char buf[900];
+    size_t n = 0;
+    auto ap = [&](const char* s) { n = jsonAppendEscaped(buf, n, sizeof(buf), s); };
+    auto as = [&](const char* key, const char* val) {
+      n += snprintf(buf + n, sizeof(buf) - n, "\"%s\":\"", key);
+      ap(val);
+      n += snprintf(buf + n, sizeof(buf) - n, "\",");
+    };
+    buf[n++] = '{';
+    as("wifi_ssid",   Cfg::g.wifi_ssid);
+    as("wifi_pass",   Cfg::g.wifi_pass);
+    as("mqtt_server", Cfg::g.mqtt_server);
+    n += snprintf(buf + n, sizeof(buf) - n, "\"mqtt_port\":%u,", Cfg::g.mqtt_port);
+    as("mqtt_user",   Cfg::g.mqtt_user);
+    as("mqtt_pass",   Cfg::g.mqtt_pass);
+    as("desc",        Cfg::g.desc);
+    n += snprintf(buf + n, sizeof(buf) - n, "\"tz_offset\":%d,\"dst_mode\":%u,",
+                  (int)Cfg::g.tz_offset, (unsigned)Cfg::g.dst_mode);
+    as("ntp1", Cfg::g.ntp1);
+    as("ntp2", Cfg::g.ntp2);
+    // last key: no trailing comma
+    n += snprintf(buf + n, sizeof(buf) - n, "\"ntp3\":\"");
+    ap(Cfg::g.ntp3);
+    n += snprintf(buf + n, sizeof(buf) - n, "\"}");
     r->send(200, "application/json", buf);
   });
 
