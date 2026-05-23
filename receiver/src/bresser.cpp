@@ -14,13 +14,13 @@
 #define BRESSER_PKT_LEN  27   // fixed CC1101 packet length (1 trailing byte ignored)
 #define PAYLOAD_LEN      26   // whitened payload bytes, from FIFO byte 0
 
-// ELECHOUSE_cc1101.ReceiveData() reads a FIFO byte as the packet length and then
-// burst-reads that many bytes into rxBuffer. In fixed-length mode there is no length
-// prefix, so a noise packet can make it request up to 255 bytes. The buffer must hold
-// the full 8-bit worst case or the read overflows into adjacent globals (corrupting
-// Cfg::g). Only the first BRESSER_PKT_LEN bytes are ever decoded.
+// In fixed-length mode the CC1101 prepends NO length byte: the FIFO holds the
+// BRESSER_PKT_LEN payload bytes verbatim. We must therefore read the FIFO
+// directly (see readFixedPkt) rather than via the library's ReceiveData(),
+// which is variable-length only — it consumes FIFO byte 0 as a length, eating
+// payload byte 0 and returning a bogus count, so the packet is never accepted.
 static bool    _ready = false;
-static uint8_t _rxBuf[256];
+static uint8_t _rxBuf[BRESSER_PKT_LEN];
 static int     _rxRssi;
 
 // ── ISR ───────────────────────────────────────────────────────────────────────
@@ -142,7 +142,10 @@ void Bresser::init() {
   ELECHOUSE_cc1101.setRxBW(270.0);        // kHz
   ELECHOUSE_cc1101.setDRate(8.21);        // kbps
   ELECHOUSE_cc1101.setSyncMode(2);        // 16-bit sync word
-  ELECHOUSE_cc1101.setSyncWord(0xAA, 0x2D);
+  // Bresser 7-in-1 on-air sync is AA 2D D4 (AA = preamble). Program the trailing
+  // 2D D4 so the FIFO starts at payload byte 0; matching only AA 2D would leave
+  // D4 as a leading byte and shift the whole payload by one.
+  ELECHOUSE_cc1101.setSyncWord(0x2D, 0xD4);
   ELECHOUSE_cc1101.setAdrChk(0);
   ELECHOUSE_cc1101.setAddr(0);
   ELECHOUSE_cc1101.setWhiteData(0);       // no hardware whitening (done in software)
@@ -161,19 +164,29 @@ void Bresser::init() {
   Serial.println(F("OK"));
 }
 
+// Read exactly BRESSER_PKT_LEN bytes straight from the RX FIFO (fixed-length
+// mode). RXBYTES bit7 is the overflow flag, bits6:0 the byte count. We require a
+// full packet and no overflow, copy it into _rxBuf, then always flush + re-arm
+// RX. Returns true once _rxBuf holds a complete packet.
+static bool readFixedPkt() {
+  bool got = false;
+  uint8_t rb = ELECHOUSE_cc1101.SpiReadStatus(CC1101_RXBYTES);
+  if (!(rb & 0x80) && (rb & 0x7F) >= BRESSER_PKT_LEN) {
+    ELECHOUSE_cc1101.SpiReadBurstReg(CC1101_RXFIFO, _rxBuf, BRESSER_PKT_LEN);
+    _rxRssi = ELECHOUSE_cc1101.getRssi();
+    got = true;
+  }
+  ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
+  ELECHOUSE_cc1101.SpiStrobe(CC1101_SFRX);
+  ELECHOUSE_cc1101.SetRx();
+  return got;
+}
+
 bool Bresser::pending() {
 #ifdef CC1101_GDO0
   if (!_ready && _gdo0Flag) {
     _gdo0Flag = false;
-    uint8_t len  = ELECHOUSE_cc1101.ReceiveData(_rxBuf);
-    _rxRssi      = ELECHOUSE_cc1101.getRssi();
-    if (len == BRESSER_PKT_LEN) {
-      _ready = true;
-    } else {
-      ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
-      ELECHOUSE_cc1101.SpiStrobe(CC1101_SFRX);
-      ELECHOUSE_cc1101.SetRx();
-    }
+    if (readFixedPkt()) _ready = true;
   }
   // Watchdog: recover from RXFIFO_OVERFLOW
   {
@@ -191,16 +204,9 @@ bool Bresser::pending() {
     }
   }
 #else
-  if (!_ready && ELECHOUSE_cc1101.CheckRxFifo(0)) {
-    uint8_t len  = ELECHOUSE_cc1101.ReceiveData(_rxBuf);
-    _rxRssi      = ELECHOUSE_cc1101.getRssi();
-    if (len == BRESSER_PKT_LEN) {
-      _ready = true;
-    } else {
-      ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
-      ELECHOUSE_cc1101.SpiStrobe(CC1101_SFRX);
-      ELECHOUSE_cc1101.SetRx();
-    }
+  if (!_ready &&
+      (ELECHOUSE_cc1101.SpiReadStatus(CC1101_RXBYTES) & 0x7F) >= BRESSER_PKT_LEN) {
+    if (readFixedPkt()) _ready = true;
   }
 #endif
   return _ready;
