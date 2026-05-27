@@ -167,7 +167,15 @@
 
       function fmtTime(epoch) {
         const d = new Date(epoch * 1000);
-        return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        const age = Math.floor(Date.now() / 1000) - epoch;
+        if (age > 20 * 3600) {
+          const day = pad(d.getDate());
+          const month = pad(d.getMonth() + 1);
+          const year = d.getFullYear();
+          return `${time} ${day}.${month}.${year}`;
+        }
+        return time;
       }
 
       let _boottime = 0;
