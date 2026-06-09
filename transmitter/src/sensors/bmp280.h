@@ -8,7 +8,13 @@ namespace BMP280 {
   static Adafruit_BMP280 _sensor;
 
   inline void setup() {
-    _sensor.begin(0x76, 0x60); // GY-B11 module address fix
+    // GY-21P: try both I2C addresses and common clone chip IDs (0x60, 0x58, 0x56)
+    bool ok = _sensor.begin(0x76, 0x60) || _sensor.begin(0x77, 0x60)
+           || _sensor.begin(0x76, 0x58) || _sensor.begin(0x77, 0x58)
+           || _sensor.begin(0x76, 0x56) || _sensor.begin(0x77, 0x56);
+#ifdef VERBOSE
+    Serial.println(ok ? F("BMP280 OK") : F("BMP280 FAIL"));
+#endif
   }
 
   inline void read(Packet& pkt) {
