@@ -8,7 +8,7 @@ namespace Node {
 
   static uint16_t _generate() {
 #ifdef CUSTOM_UID
-    return (uint16_t)strtol(CUSTOM_UID, nullptr, 16);
+    return (uint16_t)CUSTOM_UID;        // decimal in config, hex only for display
 #else
     return (uint16_t)random(256, 4096);
 #endif
@@ -34,7 +34,10 @@ namespace Node {
 #endif
 #ifdef VERBOSE
     Serial.print(F("> Node: 0x"));
-    Serial.println(_uid, HEX);
+    Serial.print(_uid, HEX);
+    Serial.print(F(" ("));
+    Serial.print(_uid, DEC);
+    Serial.println(F(")"));
 #endif
   }
 
