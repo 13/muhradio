@@ -3,11 +3,14 @@
 #include <LowPower.h>
 #include <LoRa.h>
 
+#ifndef DS_D
+#define DS_D 100
+#endif
+
 namespace Power {
   // t=0: sleep forever (interrupt wake)
-  // t=1..7: sleep t minutes  (note: uint16_t arithmetic prevents overflow)
-  // t=8+: sleep t seconds
-  inline void sleepDeep(uint8_t t = 0) {
+  // t>0: sleep t seconds
+  inline void sleepDeep(uint16_t t = 0) {
     LoRa.sleep();
     delay(DS_D);
 
@@ -19,23 +22,39 @@ namespace Power {
       return;
     }
 
-    uint16_t seconds = (t < 8) ? (uint16_t)t * 60 : t;
 #ifdef VERBOSE
     Serial.print(F("Sleep: "));
-    if (t < 8) { Serial.print(t); Serial.println(F("min")); }
-    else        { Serial.print(t); Serial.println(F("s"));   }
+    Serial.print(t);
+    Serial.println(F("s"));
 #endif
-    for (uint16_t i = 0; i < seconds / 8; i++) {
+    for (uint16_t i = 0; i < t / 8; i++) {
       LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
     }
+  }
+
+  inline void init() {
+#ifdef VERBOSE
+#if defined(DS_M)
+    Serial.print(F("> DS: ")); Serial.print(DS_M); Serial.println(F("m"));
+#elif defined(DS_S)
+    Serial.print(F("> DS: ")); Serial.print(DS_S); Serial.println(F("s"));
+#endif
+#endif
   }
 
   inline void sleepSensor() {
 #if defined(SENSOR_TYPE_pir)    || defined(SENSOR_TYPE_radar) || \
     defined(SENSOR_TYPE_switch) || defined(SENSOR_TYPE_button)
     sleepDeep();
+#elif defined(DS_S) && defined(DS_M)
+#error "Define only one of DS_S (seconds) or DS_M (minutes), not both"
+#elif defined(DS_S)
+    static_assert(DS_S >= 8, "DS_S must be >= 8 (minimum sleep period is SLEEP_8S)");
+    sleepDeep(DS_S);
+#elif defined(DS_M)
+    sleepDeep((uint16_t)DS_M * 60);
 #else
-    sleepDeep(DS_L);
+#error "Define either DS_S (seconds) or DS_M (minutes)"
 #endif
   }
 }

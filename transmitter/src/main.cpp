@@ -58,6 +58,7 @@ void setup() {
 
   randomSeed(analogRead(0));
   Node::init();
+  Power::init();
   Transport::init();
   vRef.begin();
   digitalWrite(LED_BUILTIN, LOW);
