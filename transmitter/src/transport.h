@@ -51,6 +51,7 @@ namespace Transport {
 #ifdef VERBOSE
       Serial.println(F("> CC1101: SPI ERROR"));
 #endif
+      return false;
     }
     ELECHOUSE_cc1101.setCCMode(1);
     ELECHOUSE_cc1101.setModulation(0);
