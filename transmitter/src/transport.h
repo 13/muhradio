@@ -60,31 +60,26 @@ namespace Transport {
       return false;
     }
     ELECHOUSE_cc1101.setGDO0(CC1101_GDO0); // driver leaves GDO0 uninitialized; needed for TX-done detection
+    // TX-only node: everything below shapes the transmitted signal and must
+    // match the receiver (receiver/src/radio.cpp). RX-only settings (RxBW,
+    // address filter, DC filter, PQT, CRC autoflush, append status) are
+    // omitted; channel stays at the driver default 0.
     ELECHOUSE_cc1101.setCCMode(1);
-    ELECHOUSE_cc1101.setModulation(0);
+    ELECHOUSE_cc1101.setModulation(0);         // 2-FSK
     ELECHOUSE_cc1101.setMHZ(CC1101_MHZ);
     ELECHOUSE_cc1101.setDeviation(47.60);
-    ELECHOUSE_cc1101.setChannel(0);
-    ELECHOUSE_cc1101.setChsp(199.95);
-    ELECHOUSE_cc1101.setRxBW(812.50);
     ELECHOUSE_cc1101.setDRate(99.97);
     ELECHOUSE_cc1101.setPA(CC1101_POWER);
     ELECHOUSE_cc1101.setSyncMode(2);
     ELECHOUSE_cc1101.setSyncWord(213, 147);
-    ELECHOUSE_cc1101.setAdrChk(0);
-    ELECHOUSE_cc1101.setAddr(0);
     ELECHOUSE_cc1101.setWhiteData(0);
     ELECHOUSE_cc1101.setPktFormat(0);
-    ELECHOUSE_cc1101.setLengthConfig(1);
+    ELECHOUSE_cc1101.setLengthConfig(1);       // variable length
     ELECHOUSE_cc1101.setPacketLength(0);
     ELECHOUSE_cc1101.setCrc(1);
-    ELECHOUSE_cc1101.setCRC_AF(0);
-    ELECHOUSE_cc1101.setDcFilterOff(0);
     ELECHOUSE_cc1101.setManchester(0);
     ELECHOUSE_cc1101.setFEC(0);
-    ELECHOUSE_cc1101.setPRE(0);
-    ELECHOUSE_cc1101.setPQT(0);
-    ELECHOUSE_cc1101.setAppendStatus(0);
+    ELECHOUSE_cc1101.setPRE(0);                // 2 preamble bytes (minimum)
     _ready = true;
 #ifdef VERBOSE
     Serial.println(F("> CC1101: OK"));
