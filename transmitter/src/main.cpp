@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <avr/power.h>
 #include <VoltageReference.h>
 #include <version.h>
 
@@ -40,12 +41,19 @@ static uint16_t msgCounter = 1;
 #endif
 
 void setup() {
+  // Timer0 stays on for millis()/delay(); SPI stays on for the radio.
+  power_timer1_disable();
+  power_timer2_disable();
+#if !defined(SENSOR_TYPE_si7021) && !defined(SENSOR_TYPE_bmp280) && !defined(SENSOR_TYPE_bme680)
+  power_twi_disable();
+#endif
+
+#if defined(VERBOSE) || defined(DEBUG)
   Serial.begin(9600);
   delay(30);
 
   Serial.print(F("> Booting "));
   Serial.println(VERSION);
-#ifdef VERBOSE
   Serial.print(F("> Mode:"));
 #ifdef USE_CRYPTO
   Serial.print(F(" CRYPTO"));
@@ -54,6 +62,8 @@ void setup() {
   Serial.print(F(" DEBUG"));
 #endif
   Serial.println();
+#else
+  power_usart0_disable();
 #endif
 
   randomSeed(analogRead(0));

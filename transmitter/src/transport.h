@@ -5,6 +5,9 @@
 
 #ifdef USE_CC1101
   #include <ELECHOUSE_CC1101_SRC_DRV.h>
+  #ifndef CC1101_GDO0
+  #define CC1101_GDO0 2
+  #endif
 #else
   #include <LoRa.h>
 #endif
@@ -18,6 +21,9 @@ namespace Transport {
   static constexpr byte ADDR_SENDER   = 0x14;
   static constexpr byte ADDR_RECEIVER = 0x15;
   static bool _ready = false;
+#ifdef USE_CC1101
+  static bool _asleep = false;
+#endif
 
 #ifdef USE_CRYPTO
   static constexpr uint8_t CIPHER_BUF = 80;
@@ -53,6 +59,7 @@ namespace Transport {
 #endif
       return false;
     }
+    ELECHOUSE_cc1101.setGDO0(CC1101_GDO0); // driver leaves GDO0 uninitialized; needed for TX-done detection
     ELECHOUSE_cc1101.setCCMode(1);
     ELECHOUSE_cc1101.setModulation(0);
     ELECHOUSE_cc1101.setMHZ(CC1101_MHZ);
@@ -88,6 +95,9 @@ namespace Transport {
       LoRa.setSpreadingFactor(10);
       LoRa.setSyncWord(0x13);
       LoRa.enableCrc();
+#ifdef LO_POWER
+      LoRa.setTxPower(LO_POWER);
+#endif
     }
 #ifdef VERBOSE
     Serial.println(_ready ? F("> LoRa: OK") : F("> LoRa: FAIL"));
@@ -112,6 +122,16 @@ namespace Transport {
 #endif
 #endif
     return _ready;
+  }
+
+  inline void sleep() {
+    if (!_ready) return;
+#ifdef USE_CC1101
+    ELECHOUSE_cc1101.goSleep(); // SIDLE + SPWD: ~1.7 mA idle -> ~0.2 uA
+    _asleep = true;
+#else
+    LoRa.sleep();
+#endif
   }
 
   inline void send(Packet& pkt) {
@@ -141,7 +161,12 @@ namespace Transport {
 #endif
 
 #ifdef USE_CC1101
-    ELECHOUSE_cc1101.SendData(frame, frameLen, 100);
+    if (_asleep) {
+      ELECHOUSE_cc1101.setSidle();          // CS assert wakes the chip from SLEEP
+      ELECHOUSE_cc1101.setPA(CC1101_POWER); // PATABLE beyond index 0 is lost in SLEEP
+      _asleep = false;
+    }
+    ELECHOUSE_cc1101.SendData(frame, frameLen); // returns on GDO0 TX-done instead of a blind 100 ms delay
 #ifdef VERBOSE
     Serial.print(F("TX CC1101 ")); Serial.print(frameLen); Serial.print(F("B: "));
     _hexDump(frame, frameLen);

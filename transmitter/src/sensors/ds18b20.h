@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <LowPower.h>
 #include "../packet.h"
 
 namespace DS18B20 {
@@ -10,10 +11,16 @@ namespace DS18B20 {
 
   inline void setup() {
     _sensor.begin();
+    _sensor.setWaitForConversion(false);
   }
 
   inline void read(Packet& pkt) {
     _sensor.requestTemperatures();
+    // 12-bit conversion takes 750 ms; power down instead of busy-waiting.
+    // WDT periods vary ~±10%, so sleep a nominal 870 ms (worst case >750 ms).
+    LowPower.powerDown(SLEEP_500MS, ADC_OFF, BOD_OFF);
+    LowPower.powerDown(SLEEP_250MS, ADC_OFF, BOD_OFF);
+    LowPower.powerDown(SLEEP_120MS, ADC_OFF, BOD_OFF);
     float t = _sensor.getTempCByIndex(0);
     if (t == DEVICE_DISCONNECTED_C) return;
     pkt.addI16(Field::T_DS, (int16_t)round(t * 10.0f));

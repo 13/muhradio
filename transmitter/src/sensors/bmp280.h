@@ -12,12 +12,22 @@ namespace BMP280 {
     bool ok = _sensor.begin(0x76, 0x60) || _sensor.begin(0x77, 0x60)
            || _sensor.begin(0x76, 0x58) || _sensor.begin(0x77, 0x58)
            || _sensor.begin(0x76, 0x56) || _sensor.begin(0x77, 0x56);
+    // begin() defaults to MODE_NORMAL (continuous sampling, ~0.5 mA even while the
+    // MCU sleeps). Forced mode sleeps between readings; oversampling kept at the
+    // library defaults so values are unchanged.
+    if (ok)
+      _sensor.setSampling(Adafruit_BMP280::MODE_FORCED,
+                          Adafruit_BMP280::SAMPLING_X16,
+                          Adafruit_BMP280::SAMPLING_X16,
+                          Adafruit_BMP280::FILTER_OFF,
+                          Adafruit_BMP280::STANDBY_MS_1);
 #ifdef VERBOSE
     Serial.println(ok ? F("BMP280 OK") : F("BMP280 FAIL"));
 #endif
   }
 
   inline void read(Packet& pkt) {
+    if (!_sensor.takeForcedMeasurement()) return;
     float p = _sensor.readPressure();
     if (isnan(p) || p <= 0) return;
     float t = _sensor.readTemperature();

@@ -1,22 +1,27 @@
 #pragma once
 #include <Arduino.h>
 #include <LowPower.h>
-#include <LoRa.h>
+#include "transport.h"
 
 #ifndef DS_D
-#define DS_D 100
+#define DS_D 0
 #endif
 
 namespace Power {
   // t=0: sleep forever (interrupt wake)
   // t>0: sleep t seconds
   inline void sleepDeep(uint16_t t = 0) {
-    LoRa.sleep();
+    Transport::sleep();
+#if DS_D > 0
     delay(DS_D);
+#endif
 
     if (t == 0) {
 #ifdef VERBOSE
       Serial.println(F("Sleep: forever"));
+#endif
+#if defined(VERBOSE) || defined(DEBUG)
+      Serial.flush();
 #endif
       LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
       return;
@@ -26,6 +31,9 @@ namespace Power {
     Serial.print(F("Sleep: "));
     Serial.print(t);
     Serial.println(F("s"));
+#endif
+#if defined(VERBOSE) || defined(DEBUG)
+    Serial.flush();
 #endif
     for (uint16_t i = 0; i < t / 8; i++) {
       LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
