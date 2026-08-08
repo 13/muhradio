@@ -31,6 +31,17 @@
 #  define TZ_DST_MODE  2  // 0=off, 1=always on, 2=auto EU rules
 #endif
 
+// ── Web UI / OTA auth ─────────────────────────────────────────────────────────
+// When WEB_PASS is non-empty: HTTP basic auth on all mutating endpoints
+// (/update, /reboot, /api/settings, /api/reset) and password on espota OTA.
+// Empty WEB_PASS = no auth (previous behavior).
+#ifndef WEB_USER
+#  define WEB_USER "admin"
+#endif
+#ifndef WEB_PASS
+#  define WEB_PASS ""
+#endif
+
 // ── NTP ───────────────────────────────────────────────────────────────────────
 #ifndef NTP1
 #  define NTP1 "192.168.22.5"

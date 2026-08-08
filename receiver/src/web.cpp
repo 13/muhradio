@@ -31,35 +31,7 @@ static bool           _pendingReboot = false;
 // 2 KB static buffer — serialised once per notify call, never on heap.
 static char _wsBuf[2048];
 
-// Append src to dst (bounded by dstSize), producing valid JSON-string content.
-// Escapes control chars as \u00XX and replaces invalid UTF-8 bytes with '?', so a
-// corrupted config value can never yield unparseable JSON. Returns new length.
-static size_t jsonAppendEscaped(char* dst, size_t len, size_t dstSize, const char* src) {
-  static const char hex[] = "0123456789abcdef";
-  const unsigned char* p = (const unsigned char*)src;
-  while (*p && len + 6 < dstSize) {
-    unsigned char c = *p;
-    if (c == '"' || c == '\\') { dst[len++] = '\\'; dst[len++] = c; p++; }
-    else if (c == '\n')        { dst[len++] = '\\'; dst[len++] = 'n'; p++; }
-    else if (c == '\r')        { dst[len++] = '\\'; dst[len++] = 'r'; p++; }
-    else if (c == '\t')        { dst[len++] = '\\'; dst[len++] = 't'; p++; }
-    else if (c < 0x20) {
-      dst[len++] = '\\'; dst[len++] = 'u'; dst[len++] = '0'; dst[len++] = '0';
-      dst[len++] = hex[c >> 4]; dst[len++] = hex[c & 0xF]; p++;
-    }
-    else if (c < 0x80) { dst[len++] = (char)c; p++; }
-    else {
-      // Multi-byte UTF-8: pass through only if the continuation bytes are valid.
-      int n = (c >= 0xF0) ? 3 : (c >= 0xE0) ? 2 : (c >= 0xC0) ? 1 : -1;
-      bool ok = n > 0;
-      for (int i = 1; ok && i <= n; i++) if ((p[i] & 0xC0) != 0x80) ok = false;
-      if (ok) { for (int i = 0; i <= n; i++) dst[len++] = (char)p[i]; p += n + 1; }
-      else    { dst[len++] = '?'; p++; }
-    }
-  }
-  dst[len] = '\0';
-  return len;
-}
+#include "jsonbuilder.h" // jsonAppendEscaped
 
 // ── OTA bundle state ───────────────────────────────────────────────────────────
 // Bundle format (produced by `pio run -t otabundle`):
@@ -68,12 +40,21 @@ static size_t jsonAppendEscaped(char* dst, size_t len, size_t dstSize, const cha
 static constexpr uint32_t OTA_MAGIC = 0x4642524D; // 'M','R','B','F' LE
 
 struct OtaState {
-  enum Phase : uint8_t { DETECT, FW, FS, SINGLE } phase;
+  enum Phase : uint8_t { DETECT, FW, FS, SINGLE, DONE, ABORT } phase;
   uint8_t  hdr[12];
   uint8_t  hdrGot;
   uint32_t fwSize, fsSize, fwWrote;
 };
 static OtaState _ota;
+
+// ── Auth ───────────────────────────────────────────────────────────────────────
+// Basic auth on mutating endpoints, active only when WEB_PASS is set.
+static bool _auth(AsyncWebServerRequest* r) {
+  if (!WEB_PASS[0]) return true;
+  if (r->authenticate(WEB_USER, WEB_PASS)) return true;
+  r->requestAuthentication();
+  return false;
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 static const char* _serialize(Status& s, time_t ts) {
@@ -133,21 +114,25 @@ void Web::begin(Status& s) {
   _server.on("/json", HTTP_GET, [](AsyncWebServerRequest* r)
     { r->send(200, "application/json",
         _status ? _serialize(*_status, _status->timestamp) : "{}"); });
-  _server.on("/reboot", HTTP_GET, [](AsyncWebServerRequest* r) {
+  // GET kept for the update.html link; restart deferred to loop() so the
+  // response actually reaches the client.
+  _server.on("/reboot", HTTP_GET | HTTP_POST, [](AsyncWebServerRequest* r) {
+    if (!_auth(r)) return;
     AsyncWebServerResponse* resp = r->beginResponse(200, "application/json",
       "{\"reboot\":true,\"message\":\"Rebooting...\"}");
     resp->addHeader("Connection", "close");
     r->send(resp);
     Serial.println(F("> [HTTP] Rebooting..."));
-    ESP.restart();
+    _pendingReboot = true;
   });
 
   // OTA update handler — accepts plain firmware.bin, plain littlefs.bin,
   // or a combined bundle (magic header + firmware + filesystem in one file).
   _server.on("/update", HTTP_POST,
     [](AsyncWebServerRequest* r) {
+      if (!_auth(r)) return;
       AsyncWebServerResponse* resp;
-      if (!Update.hasError())
+      if (_ota.phase != OtaState::ABORT && !Update.hasError())
         resp = r->beginResponse(200, "application/json",
           "{\"success\":true,\"message\":\"Updated!\"}");
       else
@@ -156,11 +141,15 @@ void Web::begin(Status& s) {
       resp->addHeader("Connection", "close");
       r->send(resp);
     },
-    [](AsyncWebServerRequest*, String filename,
+    [](AsyncWebServerRequest* r, String filename,
        size_t index, uint8_t* data, size_t len, bool final) {
       if (!index) {
         Serial.printf("> [OTA] %s\n", filename.c_str());
         _ota = OtaState{OtaState::DETECT, {}, 0, 0, 0, 0};
+        if (WEB_PASS[0] && !r->authenticate(WEB_USER, WEB_PASS)) {
+          Serial.println(F("> [OTA] unauthorized — dropping upload"));
+          _ota.phase = OtaState::ABORT;
+        }
       }
 
       const uint8_t* p    = data;
@@ -186,7 +175,18 @@ void Web::begin(Status& s) {
               memcpy(&_ota.fwSize, _ota.hdr + 4, 4);
               memcpy(&_ota.fsSize, _ota.hdr + 8, 4);
               Serial.printf("> [OTA] bundle  fw=%u  fs=%u\n", _ota.fwSize, _ota.fsSize);
-              if (!Update.begin(_ota.fwSize, U_FLASH)) Update.printError(Serial);
+              // Header comes from the upload — sanity-check before trusting it
+              if (_ota.fwSize == 0 || _ota.fwSize > 0x1000000UL ||
+                  _ota.fsSize > 0x1000000UL) {
+                Serial.println(F("> [OTA] implausible bundle sizes — abort"));
+                _ota.phase = OtaState::ABORT;
+                break;
+              }
+              if (!Update.begin(_ota.fwSize, U_FLASH)) {
+                Update.printError(Serial);
+                _ota.phase = OtaState::ABORT;
+                break;
+              }
               _ota.phase = OtaState::FW;
             } else {
               // Not a bundle — determine type from filename, write buffered header.
@@ -204,8 +204,16 @@ void Web::begin(Status& s) {
                 sz  = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
                 cmd = U_FLASH;
               }
-              if (!Update.begin(sz, cmd)) Update.printError(Serial);
-              if (Update.write(_ota.hdr, 12) != 12) Update.printError(Serial);
+              if (!Update.begin(sz, cmd)) {
+                Update.printError(Serial);
+                _ota.phase = OtaState::ABORT;
+                break;
+              }
+              if (Update.write(_ota.hdr, 12) != 12) {
+                Update.printError(Serial);
+                _ota.phase = OtaState::ABORT;
+                break;
+              }
               _ota.phase = OtaState::SINGLE;
             }
             break;
@@ -214,15 +222,32 @@ void Web::begin(Status& s) {
           case OtaState::FW: {
             uint32_t fw_left = _ota.fwSize - _ota.fwWrote;
             size_t   take    = min((size_t)fw_left, left);
-            if (Update.write((uint8_t*)p, take) != take) Update.printError(Serial);
+            if (Update.write((uint8_t*)p, take) != take) {
+              Update.printError(Serial);
+              _ota.phase = OtaState::ABORT;
+              break;
+            }
             _ota.fwWrote += take;
             p    += take;
             left -= take;
 
             if (_ota.fwWrote == _ota.fwSize) {
-              if (!Update.end(true)) { Update.printError(Serial); return; }
+              if (!Update.end(true)) {
+                Update.printError(Serial);
+                _ota.phase = OtaState::ABORT;
+                break;
+              }
+              if (_ota.fsSize == 0) {
+                Serial.println(F("> [OTA] firmware OK — no filesystem in bundle"));
+                _ota.phase = OtaState::DONE;
+                break;
+              }
               Serial.println(F("> [OTA] firmware OK — flashing filesystem"));
-              if (!Update.begin(_ota.fsSize, U_FS_CMD)) Update.printError(Serial);
+              if (!Update.begin(_ota.fsSize, U_FS_CMD)) {
+                Update.printError(Serial);
+                _ota.phase = OtaState::ABORT;
+                break;
+              }
               _ota.phase = OtaState::FS;
             }
             break;
@@ -230,24 +255,40 @@ void Web::begin(Status& s) {
 
           case OtaState::FS:
           case OtaState::SINGLE:
-            if (Update.write((uint8_t*)p, left) != left) Update.printError(Serial);
+            if (Update.write((uint8_t*)p, left) != left) {
+              Update.printError(Serial);
+              _ota.phase = OtaState::ABORT;
+              break;
+            }
             left = 0;
             break;
+
+          case OtaState::DONE:
+          case OtaState::ABORT:
+            left = 0; // swallow the rest of the upload, nothing gets written
+            break;
         }
-        
+
         // Feed watchdog and allow WiFi stack to process on ESP8266
         yield();
       }
 
       if (final) {
-        if (!Update.end(true)) Update.printError(Serial);
-        else Serial.println(F("> [OTA] OK"));
+        if (_ota.phase == OtaState::FS || _ota.phase == OtaState::SINGLE) {
+          if (!Update.end(true)) {
+            Update.printError(Serial);
+            _ota.phase = OtaState::ABORT;
+          } else {
+            Serial.println(F("> [OTA] OK"));
+          }
+        }
       }
     }
   );
 
   // Settings — GET returns current config JSON, POST updates + reboots.
   _server.on("/api/settings", HTTP_GET, [](AsyncWebServerRequest* r) {
+    if (!_auth(r)) return;
     char buf[900];
     size_t n = 0;
     auto ap = [&](const char* s) { n = jsonAppendEscaped(buf, n, sizeof(buf), s); };
@@ -256,13 +297,15 @@ void Web::begin(Status& s) {
       ap(val);
       n += snprintf(buf + n, sizeof(buf) - n, "\",");
     };
+    // Secrets never leave the device: "***" = set, "" = unset. The POST
+    // handler ignores the literal "***" so the settings form round-trips.
     buf[n++] = '{';
     as("wifi_ssid",   Cfg::g.wifi_ssid);
-    as("wifi_pass",   Cfg::g.wifi_pass);
+    as("wifi_pass",   Cfg::g.wifi_pass[0] ? "***" : "");
     as("mqtt_server", Cfg::g.mqtt_server);
     n += snprintf(buf + n, sizeof(buf) - n, "\"mqtt_port\":%u,", Cfg::g.mqtt_port);
     as("mqtt_user",   Cfg::g.mqtt_user);
-    as("mqtt_pass",   Cfg::g.mqtt_pass);
+    as("mqtt_pass",   Cfg::g.mqtt_pass[0] ? "***" : "");
     as("desc",        Cfg::g.desc);
     n += snprintf(buf + n, sizeof(buf) - n, "\"tz_offset\":%d,\"dst_mode\":%u,",
                   (int)Cfg::g.tz_offset, (unsigned)Cfg::g.dst_mode);
@@ -276,15 +319,23 @@ void Web::begin(Status& s) {
   });
 
   _server.on("/api/settings", HTTP_POST, [](AsyncWebServerRequest* r) {
+    if (!_auth(r)) return;
     auto get = [&](const char* name, char* dst, size_t n) {
       if (r->hasParam(name, true))
         strlcpy(dst, r->getParam(name, true)->value().c_str(), n);
     };
+    // "***" is the mask from GET — means "unchanged". Empty clears.
+    auto getSecret = [&](const char* name, char* dst, size_t n) {
+      if (!r->hasParam(name, true)) return;
+      const String& v = r->getParam(name, true)->value();
+      if (v == "***") return;
+      strlcpy(dst, v.c_str(), n);
+    };
     get("wifi_ssid",   Cfg::g.wifi_ssid,   sizeof(Cfg::g.wifi_ssid));
-    get("wifi_pass",   Cfg::g.wifi_pass,   sizeof(Cfg::g.wifi_pass));
+    getSecret("wifi_pass", Cfg::g.wifi_pass, sizeof(Cfg::g.wifi_pass));
     get("mqtt_server", Cfg::g.mqtt_server, sizeof(Cfg::g.mqtt_server));
     get("mqtt_user",   Cfg::g.mqtt_user,   sizeof(Cfg::g.mqtt_user));
-    get("mqtt_pass",   Cfg::g.mqtt_pass,   sizeof(Cfg::g.mqtt_pass));
+    getSecret("mqtt_pass", Cfg::g.mqtt_pass, sizeof(Cfg::g.mqtt_pass));
     get("desc",        Cfg::g.desc,        sizeof(Cfg::g.desc));
     get("ntp1",        Cfg::g.ntp1,        sizeof(Cfg::g.ntp1));
     get("ntp2",        Cfg::g.ntp2,        sizeof(Cfg::g.ntp2));
@@ -302,6 +353,7 @@ void Web::begin(Status& s) {
   });
 
   _server.on("/api/reset", HTTP_POST, [](AsyncWebServerRequest* r) {
+    if (!_auth(r)) return;
     LittleFS.remove("/config.json");
     r->send(200, "application/json", "{\"success\":true}");
     _pendingReboot = true;

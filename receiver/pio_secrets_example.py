@@ -30,6 +30,12 @@ NTP3 = "time.cloudflare.com"
 TZ_OFFSET   = 60    # UTC offset in minutes (e.g. 60 = UTC+1)
 TZ_DST_MODE = 2    # 0=off, 1=always on, 2=auto EU rules
 
+# ── Web UI / OTA auth ─────────────────────────────────────────────────────────
+# Non-empty WEB_PASS enables HTTP basic auth on mutating web endpoints
+# (/update, /reboot, /api/*) and sets the espota OTA password.
+WEB_USER = "admin"
+WEB_PASS = ""
+
 # ── Crypto ────────────────────────────────────────────────────────────────────
 # Generate with:  openssl rand -hex 16   (must match transmitter)
 AES_KEY   = ""

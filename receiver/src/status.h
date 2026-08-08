@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include "jsonbuilder.h"
 
 static constexpr int MAX_PACKETS = 5;
 
@@ -28,32 +29,42 @@ struct Status {
 
   // Writes the full status JSON into buf.
   // Packets are embedded as JSON strings so the frontend can JSON.parse() each one.
+  // String fields go through the shared escaper — a quote in desc/ssid must
+  // not break the websocket JSON.
   void toJson(char* buf, size_t cap) const {
-    int n = snprintf(buf, cap,
-      "{\"uptime\":%d,\"rssi\":%d,\"memfree\":%d,\"memfrag\":%d,"
-      "\"ssid\":\"%s\",\"ip\":\"%s\",\"mac\":\"%s\","
-      "\"cpu\":\"%s\",\"hostname\":\"%s\",\"desc\":\"%s\","
-      "\"resetreason\":\"%s\",\"version\":\"%s\","
-      "\"boottime\":%ld,\"timestamp\":%ld,\"packets\":[",
-      uptime, rssi, memfree, memfrag,
-      ssid, ip, mac, cpu, hostname, desc,
-      resetreason, version,
-      (long)boottime, (long)timestamp);
+    size_t n = snprintf(buf, cap,
+      "{\"uptime\":%d,\"rssi\":%d,\"memfree\":%d,\"memfrag\":%d,",
+      uptime, rssi, memfree, memfrag);
+    if (n > cap - 1) n = cap - 1;
+
+    auto kvs = [&](const char* k, const char* v) {
+      n += snprintf(buf + n, cap - n, "\"%s\":\"", k);
+      if (n > cap - 1) n = cap - 1;
+      n = jsonAppendEscaped(buf, n, cap, v);
+      n += snprintf(buf + n, cap - n, "\",");
+      if (n > cap - 1) n = cap - 1;
+    };
+    kvs("ssid",        ssid);
+    kvs("ip",          ip);
+    kvs("mac",         mac);
+    kvs("cpu",         cpu);
+    kvs("hostname",    hostname);
+    kvs("desc",        desc);
+    kvs("resetreason", resetreason);
+    kvs("version",     version);
+
+    n += snprintf(buf + n, cap - n, "\"boottime\":%ld,\"timestamp\":%ld,\"packets\":[",
+                  (long)boottime, (long)timestamp);
+    if (n > cap - 1) n = cap - 1;
 
     for (int i = 0; i < MAX_PACKETS; i++) {
-      if (n >= (int)cap - 4) break;
+      if (n >= cap - 4) break;
       if (i > 0) buf[n++] = ',';
-      if (!packets[i][0]) {
-        buf[n++] = '"'; buf[n++] = '"';
-        continue;
-      }
       buf[n++] = '"';
-      for (const char* s = packets[i]; *s && n < (int)cap - 3; s++) {
-        if (*s == '"' || *s == '\\') buf[n++] = '\\';
-        buf[n++] = *s;
-      }
-      buf[n++] = '"';
+      n = jsonAppendEscaped(buf, n, cap - 2, packets[i]); // keep room for "]}"
+      if (n < cap) buf[n++] = '"';
     }
-    if (n < (int)cap - 2) { buf[n++] = ']'; buf[n++] = '}'; buf[n] = '\0'; }
+    if (n < cap - 2) { buf[n++] = ']'; buf[n++] = '}'; }
+    buf[n] = '\0';
   }
 };

@@ -1,5 +1,6 @@
 #ifdef ESP8266
 #include "ota8266.h"
+#include "config.h"
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
@@ -9,7 +10,8 @@ static ESP8266WebServer        _otaServer(8080);
 static ESP8266HTTPUpdateServer _otaHandler;
 
 void ota8266Begin(const char* hostname) {
-  _otaHandler.setup(&_otaServer);
+  if (WEB_PASS[0]) _otaHandler.setup(&_otaServer, WEB_USER, WEB_PASS);
+  else             _otaHandler.setup(&_otaServer);
   _otaServer.begin();
   Serial.print(F("> [OTA]  http://"));
   Serial.print(WiFi.localIP());

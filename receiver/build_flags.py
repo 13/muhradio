@@ -54,6 +54,8 @@ try:
     if _s('NTP3'):              print(f"'-DNTP3=\"{_s('NTP3')}\"'")
     if _i('TZ_OFFSET') is not None: print(f"'-DTZ_OFFSET={_i('TZ_OFFSET')}'")
     if _i('TZ_DST_MODE') is not None: print(f"'-DTZ_DST_MODE={_i('TZ_DST_MODE')}'")
+    if _s('WEB_USER'):          print(f"'-DWEB_USER=\"{_s('WEB_USER')}\"'")
+    if _s('WEB_PASS'):          print(f"'-DWEB_PASS=\"{_s('WEB_PASS')}\"'")
     key = _s('AES_KEY')
     if key:
         print("'-DUSE_CRYPTO'")

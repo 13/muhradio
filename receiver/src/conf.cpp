@@ -1,5 +1,6 @@
 #include "conf.h"
 #include "config.h"
+#include "jsonbuilder.h"
 #include <LittleFS.h>
 #ifdef ESP32
   #include <sys/stat.h>
@@ -98,14 +99,9 @@ void Cfg::load() {
 }
 
 bool Cfg::save() {
-  // Escape " and \ for JSON safety
+  // Shared JSON escaper (jsonbuilder.h) — also handles control chars/UTF-8
   auto esc = [](const char* src, char* dst, size_t n) {
-    size_t i = 0;
-    for (; *src && i + 2 < n; src++) {
-      if (*src == '"' || *src == '\\') dst[i++] = '\\';
-      dst[i++] = *src;
-    }
-    dst[i] = '\0';
+    jsonAppendEscaped(dst, 0, n, src);
   };
 
   char ws[128], wp[128], ms[128], mu[64], mp[128], ds[64];
