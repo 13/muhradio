@@ -3,6 +3,11 @@
 Components are tagged independently: `receiver/vX.Y.Z` and `transmitter/vX.Y.Z`.
 History before the versions below: see `git log`.
 
+## receiver/v1.8.1 — 2026-08-08
+
+- Config save: buffer sized for worst-case escaped fields (1280 B) and save
+  refuses to write a truncated config.json
+
 ## receiver/v1.8.0 — 2026-08-08
 
 - Node statistics now opt-in: new Settings toggle (default **off**) gates the
