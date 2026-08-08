@@ -1,29 +1,10 @@
 #pragma once
+#ifdef ARDUINO
 #include <Arduino.h>
+#endif
 #include <string.h>
-
-// Wire format: [uid:2][pid:1][bitmap:2][values in bit-ascending order, present only]
-//
-// Field bit positions — MUST be added in ascending order.
-// Each bit maps to a (sensor, measurement) pair with a fixed known size,
-// so the receiver can read values sequentially by checking each bit in order.
-enum class Field : uint8_t {
-  COUNTER = 0,   // uint16 — packet counter (debug)
-  BUTTON  = 1,   // uint8  — 0=open, 1=pressed
-  SWITCH  = 2,   // uint8  — 0/1
-  PIR     = 3,   // uint8  — 0/1
-  RADAR   = 4,   // uint8  — 0/1
-  T_SI    = 5,   // int16  — Si7021  °C*10
-  H_SI    = 6,   // int16  — Si7021  %*10
-  T_DS    = 7,   // int16  — DS18B20 °C*10
-  T_BMP   = 8,   // int16  — BMP280  °C*10
-  P_BMP   = 9,   // uint32 — BMP280  Pa/10
-  T_BME   = 10,  // int16  — BME680  °C*10
-  H_BME   = 11,  // int16  — BME680  %*10
-  P_BME   = 12,  // uint32 — BME680  Pa/10
-  G_BME   = 13,  // uint16 — BME680  kOhm
-  VCC     = 14,  // uint8  — V*10
-};
+#include <stdint.h>
+#include "../../shared/fields.h" // Field enum + wire-format tables
 
 class Packet {
 public:
