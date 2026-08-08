@@ -53,3 +53,51 @@ jobs:
       - run: pip install platformio
       - run: pio run -e ${{ matrix.env }}
         working-directory: ${{ matrix.project }}
+
+  # On receiver/v* tags: build installable artifacts for every receiver board
+  # and attach them to a GitHub Release. Binaries carry config.h defaults —
+  # configure via /settings.html (or /api/config/import) after flashing.
+  release:
+    if: startsWith(github.ref, 'refs/tags/receiver/v')
+    needs: [test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [esp32-s3-zero, esp32-s3-zero-cc1101, esp32-s3-zero-bresser,
+              esp32-c3-mini, esp32-c3-mini-cc1101, esp32-c3-mini-bresser,
+              d1_mini, d1_mini-bresser]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-build-${{ runner.os }}-${{ matrix.env }}-${{ hashFiles('**/platformio.ini') }}
+      - run: pip install platformio
+      - name: Build firmware + filesystem + OTA bundle
+        working-directory: receiver
+        run: |
+          pio run -e ${{ matrix.env }}
+          pio run -e ${{ matrix.env }} -t buildfs
+          pio run -e ${{ matrix.env }} -t otabundle
+      - name: Collect artifacts
+        working-directory: receiver
+        run: |
+          mkdir -p ../dist
+          for f in firmware.bin littlefs.bin ota_bundle.bin merged.bin; do
+            [ -f ".pio/build/${{ matrix.env }}/$f" ] && \
+              cp ".pio/build/${{ matrix.env }}/$f" "../dist/${{ matrix.env }}-$f" || true
+          done
+          ls -la ../dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
