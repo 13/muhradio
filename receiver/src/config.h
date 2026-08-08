@@ -74,3 +74,6 @@
 #ifndef MQTT_TOPIC_LWT
 #  define MQTT_TOPIC_LWT "muh/esp"
 #endif
+#ifndef MQTT_TOPIC_BRESSER
+#  define MQTT_TOPIC_BRESSER "muh/bresser"
+#endif

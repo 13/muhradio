@@ -1,6 +1,8 @@
 #pragma once
-#ifdef USE_BRESSER
+#ifdef ARDUINO
 #include <Arduino.h>
+#endif
+#include <time.h>
 
 struct BresserPacket {
   char json[256];
@@ -8,6 +10,7 @@ struct BresserPacket {
   bool valid;
 };
 
+#ifdef USE_BRESSER
 namespace Bresser {
   void         init();
   bool         pending();

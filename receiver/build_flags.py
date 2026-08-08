@@ -49,6 +49,7 @@ try:
     if _s('MQTT_PASS'):         print(f"'-DMQTT_PASS=\"{_s('MQTT_PASS')}\"'")
     if _s('MQTT_TOPIC'):        print(f"'-DMQTT_TOPIC=\"{_s('MQTT_TOPIC')}\"'")
     if _s('MQTT_TOPIC_LWT'):    print(f"'-DMQTT_TOPIC_LWT=\"{_s('MQTT_TOPIC_LWT')}\"'")
+    if _s('MQTT_TOPIC_BRESSER'): print(f"'-DMQTT_TOPIC_BRESSER=\"{_s('MQTT_TOPIC_BRESSER')}\"'")
     if _s('NTP1'):              print(f"'-DNTP1=\"{_s('NTP1')}\"'")
     if _s('NTP2'):              print(f"'-DNTP2=\"{_s('NTP2')}\"'")
     if _s('NTP3'):              print(f"'-DNTP3=\"{_s('NTP3')}\"'")
