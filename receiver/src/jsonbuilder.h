@@ -52,7 +52,6 @@ struct JsonBuilder {
   void finish() {
     buf[n++] = '}'; buf[n] = '\0'; // room reserved by _commit()
   }
-  bool ok() const { return n < cap - 16; }
 
   void kv(const char* k, long v) {
     size_t save = n; bool ps = sep;

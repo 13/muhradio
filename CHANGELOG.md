@@ -3,6 +3,14 @@
 Components are tagged independently: `receiver/vX.Y.Z` and `transmitter/vX.Y.Z`.
 History before the versions below: see `git log`.
 
+## receiver/v1.5.0 — 2026-08-08
+
+- Dashboard "Nodes" card: per-node last-seen, packet count, RSSI and battery
+  from `GET /nodes`, refreshed every 30 s, low-battery rows highlighted
+- All platform and library versions pinned exactly for reproducible builds
+- Release notes on GitHub Releases extracted from CHANGELOG.md
+- MIT LICENSE file added (READMEs claimed MIT, file was missing)
+
 ## receiver/v1.4.1 — 2026-08-08
 
 - ESP8266 (d1_mini) OTA bundles: merge_bins.py re-enabled for the d1_mini

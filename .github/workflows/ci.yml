@@ -98,6 +98,15 @@ jobs:
               cp ".pio/build/${{ matrix.env }}/$f" "../dist/${{ matrix.env }}-$f" || true
           done
           ls -la ../dist
+      - name: Extract changelog section
+        run: |
+          awk -v tag="$GITHUB_REF_NAME" '
+            $0 ~ "^## " tag " " { f=1; next }
+            /^## / { f=0 }
+            f' CHANGELOG.md > release_notes.md
+          [ -s release_notes.md ] || echo "See CHANGELOG.md" > release_notes.md
+          cat release_notes.md
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*
+          body_path: release_notes.md

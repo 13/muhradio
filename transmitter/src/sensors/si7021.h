@@ -33,8 +33,6 @@ namespace Si7021 {
     else {
       Serial.println(F("Si7021: humidity out of range"));
     }
-#endif
-#ifdef VERBOSE
     Serial.print(F("Si7021 T="));
     Serial.print(t, 1);
     Serial.print(F(" H="));

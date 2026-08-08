@@ -120,6 +120,15 @@
           <div id="packets" class="border-t border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800"></div>
         </div>
 
+        <!-- Node health card -->
+        <div id="nodesCard" class="hidden bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
+          <button class="card-hdr w-full px-4 py-3 flex items-center justify-between text-left">
+            <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Nodes</span>
+            <svg class="card-chevron w-4 h-4 text-gray-400 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+          </button>
+          <div id="nodes" class="border-t border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800"></div>
+        </div>
+
       </div>
     </main>
 
@@ -372,6 +381,45 @@
           }
         }
       }
+
+      // ── Node health (GET /nodes, refreshed every 30 s) ────────────────────────
+      const elNodes     = document.getElementById('nodes');
+      const elNodesCard = document.getElementById('nodesCard');
+
+      function fmtAge(s) {
+        if (s < 90)     return s + 's';
+        if (s < 5400)   return Math.round(s / 60) + 'm';
+        if (s < 129600) return Math.round(s / 3600) + 'h';
+        return Math.round(s / 86400) + 'd';
+      }
+
+      async function refreshNodes() {
+        try {
+          const d = await (await fetch('/nodes')).json();
+          if (!Array.isArray(d.nodes) || d.nodes.length === 0) return;
+          d.nodes.sort((a, b) => a.uid - b.uid);
+          elNodesCard.classList.remove('hidden');
+          elNodes.replaceChildren();
+          for (const n of d.nodes) {
+            const row = document.createElement('div');
+            row.className = 'px-4 py-2 flex items-center justify-between text-sm';
+            const uid = document.createElement('span');
+            uid.className = 'font-mono text-gray-700 dark:text-gray-200';
+            uid.textContent = n.uid;
+            const meta = document.createElement('span');
+            meta.className = n.low
+              ? 'font-mono text-xs text-red-500 dark:text-red-400'
+              : 'font-mono text-xs text-gray-500 dark:text-gray-400';
+            const parts = [fmtAge(n.age) + ' ago', n.count + ' pkts', n.rssi + ' dBm'];
+            if (n.vcc) parts.push(n.vcc.toFixed(1) + ' V' + (n.low ? ' LOW' : ''));
+            meta.textContent = parts.join(' · ');
+            row.append(uid, meta);
+            elNodes.appendChild(row);
+          }
+        } catch (e) { /* receiver unreachable — keep last table */ }
+      }
+      refreshNodes();
+      setInterval(refreshNodes, 30000);
 
       // ── Collapsible cards ─────────────────────────────────────────────────────
       document.querySelectorAll('.card-hdr').forEach(btn => {
