@@ -340,21 +340,36 @@ void Web::begin(Status& s) {
       if (v == "***") return;
       strlcpy(dst, v.c_str(), n);
     };
-    get("wifi_ssid",   Cfg::g.wifi_ssid,   sizeof(Cfg::g.wifi_ssid));
+    // Never overwrite with an empty value — a device with no SSID can't be
+    // reached again without USB. Defends against a settings form that failed
+    // to load (e.g. cancelled auth prompt) posting blanks.
+    auto getNonEmpty = [&](const char* name, char* dst, size_t n) {
+      if (!r->hasParam(name, true)) return;
+      const String& v = r->getParam(name, true)->value();
+      if (v.length() == 0) return;
+      strlcpy(dst, v.c_str(), n);
+    };
+    getNonEmpty("wifi_ssid", Cfg::g.wifi_ssid, sizeof(Cfg::g.wifi_ssid));
     getSecret("wifi_pass", Cfg::g.wifi_pass, sizeof(Cfg::g.wifi_pass));
-    get("mqtt_server", Cfg::g.mqtt_server, sizeof(Cfg::g.mqtt_server));
+    getNonEmpty("mqtt_server", Cfg::g.mqtt_server, sizeof(Cfg::g.mqtt_server));
     get("mqtt_user",   Cfg::g.mqtt_user,   sizeof(Cfg::g.mqtt_user));
     getSecret("mqtt_pass", Cfg::g.mqtt_pass, sizeof(Cfg::g.mqtt_pass));
     get("desc",        Cfg::g.desc,        sizeof(Cfg::g.desc));
     get("ntp1",        Cfg::g.ntp1,        sizeof(Cfg::g.ntp1));
     get("ntp2",        Cfg::g.ntp2,        sizeof(Cfg::g.ntp2));
     get("ntp3",        Cfg::g.ntp3,        sizeof(Cfg::g.ntp3));
-    if (r->hasParam("mqtt_port", true))
-      Cfg::g.mqtt_port  = (uint16_t)r->getParam("mqtt_port",  true)->value().toInt();
-    if (r->hasParam("tz_offset", true))
-      Cfg::g.tz_offset  = (int16_t) r->getParam("tz_offset",  true)->value().toInt();
-    if (r->hasParam("dst_mode", true))
-      Cfg::g.dst_mode   = (uint8_t) r->getParam("dst_mode",   true)->value().toInt();
+    // Numeric fields: empty string toInt()s to 0 — only accept non-empty
+    auto getInt = [&](const char* name, long& out) {
+      if (!r->hasParam(name, true)) return false;
+      const String& v = r->getParam(name, true)->value();
+      if (v.length() == 0) return false;
+      out = v.toInt();
+      return true;
+    };
+    long v;
+    if (getInt("mqtt_port", v)) Cfg::g.mqtt_port = (uint16_t)v;
+    if (getInt("tz_offset", v)) Cfg::g.tz_offset = (int16_t)v;
+    if (getInt("dst_mode",  v)) Cfg::g.dst_mode  = (uint8_t)v;
     bool ok = Cfg::save();
     r->send(200, "application/json",
       ok ? "{\"success\":true}" : "{\"success\":false,\"message\":\"Save failed\"}");

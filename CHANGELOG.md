@@ -3,6 +3,15 @@
 Components are tagged independently: `receiver/vX.Y.Z` and `transmitter/vX.Y.Z`.
 History before the versions below: see `git log`.
 
+## receiver/v1.7.1 — 2026-08-08
+
+- **Fix config wipe with WEB_PASS set:** if the settings form failed to load
+  (e.g. cancelled auth prompt), Save posted blanks — the handler overwrote
+  wifi_ssid/mqtt_server with empty strings and cleared the passwords,
+  leaving the device unreachable (USB rescue only). Server now ignores
+  empty ssid/server/numeric fields; the Save button stays disabled until
+  the current settings actually loaded
+
 ## receiver/v1.7.0 — 2026-08-08
 
 - LoRa receive: FIFO drained from the main loop instead of inside the ISR

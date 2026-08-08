@@ -225,9 +225,11 @@
           </div>
         </div>
 
-        <!-- Save button -->
-        <button id="saveBtn"
+        <!-- Save button: disabled until current settings loaded — saving an
+             unpopulated form would post blanks and wipe the config -->
+        <button id="saveBtn" disabled
                 class="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700
+                       disabled:opacity-50 disabled:cursor-not-allowed
                        text-white py-3 px-4 rounded-xl transition-colors font-medium text-sm min-h-[44px]">
           Save &amp; Reboot
         </button>
@@ -370,10 +372,15 @@
               if (val && el.type !== 'password' && el.tagName !== 'SELECT')
                 el.placeholder = val;
             }
+            saveBtn.disabled = false;
           })
           .catch(() => {
             if (attempt < 3) setTimeout(() => loadSettings(attempt + 1), 1500);
-            else statusMsg.textContent = 'Could not load current settings.';
+            else {
+              statusMsg.textContent =
+                'Could not load current settings — Save disabled. Log in and reload.';
+              statusMsg.className = 'text-center text-sm text-red-600 dark:text-red-400';
+            }
           });
       })(0);
 
