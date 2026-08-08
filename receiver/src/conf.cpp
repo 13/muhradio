@@ -8,47 +8,27 @@
 
 namespace Cfg { Conf g; }
 
-// Simple flat-JSON string extractor; handles \" and \\ escapes.
-static bool _getStr(const char* j, const char* key, char* out, size_t n) {
-  char pat[80];
-  snprintf(pat, sizeof(pat), "\"%s\":\"", key);
-  const char* p = strstr(j, pat);
-  if (!p) return false;
-  p += strlen(pat);
-  size_t i = 0;
-  for (; *p && i + 1 < n; p++) {
-    if (*p == '\\' && *(p + 1)) { p++; out[i++] = *p; continue; }
-    if (*p == '"') break;
-    out[i++] = *p;
-  }
-  out[i] = '\0';
-  return true;
-}
+// Parsing lives in confjson.h (pure, unit-tested in test/test_conf).
+#include "confjson.h"
 
 static bool _getU16(const char* j, const char* key, uint16_t& out) {
-  char pat[80];
-  snprintf(pat, sizeof(pat), "\"%s\":", key);
-  const char* p = strstr(j, pat);
-  if (!p) return false;
-  out = (uint16_t)atoi(p + strlen(pat));
+  long v;
+  if (!jsonGetLong(j, key, v)) return false;
+  out = (uint16_t)v;
   return true;
 }
 
 static bool _getI16(const char* j, const char* key, int16_t& out) {
-  char pat[80];
-  snprintf(pat, sizeof(pat), "\"%s\":", key);
-  const char* p = strstr(j, pat);
-  if (!p) return false;
-  out = (int16_t)atoi(p + strlen(pat));
+  long v;
+  if (!jsonGetLong(j, key, v)) return false;
+  out = (int16_t)v;
   return true;
 }
 
 static bool _getU8(const char* j, const char* key, uint8_t& out) {
-  char pat[80];
-  snprintf(pat, sizeof(pat), "\"%s\":", key);
-  const char* p = strstr(j, pat);
-  if (!p) return false;
-  out = (uint8_t)atoi(p + strlen(pat));
+  long v;
+  if (!jsonGetLong(j, key, v)) return false;
+  out = (uint8_t)v;
   return true;
 }
 
@@ -83,18 +63,18 @@ void Cfg::load() {
   String json = f.readString();
   f.close();
 
-  _getStr(json.c_str(), "wifi_ssid",   g.wifi_ssid,   sizeof(g.wifi_ssid));
-  _getStr(json.c_str(), "wifi_pass",   g.wifi_pass,   sizeof(g.wifi_pass));
-  _getStr(json.c_str(), "mqtt_server", g.mqtt_server, sizeof(g.mqtt_server));
+  jsonGetStr(json.c_str(), "wifi_ssid",   g.wifi_ssid,   sizeof(g.wifi_ssid));
+  jsonGetStr(json.c_str(), "wifi_pass",   g.wifi_pass,   sizeof(g.wifi_pass));
+  jsonGetStr(json.c_str(), "mqtt_server", g.mqtt_server, sizeof(g.mqtt_server));
   _getU16(json.c_str(), "mqtt_port",   g.mqtt_port);
-  _getStr(json.c_str(), "mqtt_user",   g.mqtt_user,   sizeof(g.mqtt_user));
-  _getStr(json.c_str(), "mqtt_pass",   g.mqtt_pass,   sizeof(g.mqtt_pass));
-  _getStr(json.c_str(), "desc",        g.desc,        sizeof(g.desc));
+  jsonGetStr(json.c_str(), "mqtt_user",   g.mqtt_user,   sizeof(g.mqtt_user));
+  jsonGetStr(json.c_str(), "mqtt_pass",   g.mqtt_pass,   sizeof(g.mqtt_pass));
+  jsonGetStr(json.c_str(), "desc",        g.desc,        sizeof(g.desc));
   _getI16(json.c_str(), "tz_offset",  g.tz_offset);
   _getU8 (json.c_str(), "dst_mode",   g.dst_mode);
-  _getStr(json.c_str(), "ntp1",       g.ntp1,        sizeof(g.ntp1));
-  _getStr(json.c_str(), "ntp2",       g.ntp2,        sizeof(g.ntp2));
-  _getStr(json.c_str(), "ntp3",       g.ntp3,        sizeof(g.ntp3));
+  jsonGetStr(json.c_str(), "ntp1",       g.ntp1,        sizeof(g.ntp1));
+  jsonGetStr(json.c_str(), "ntp2",       g.ntp2,        sizeof(g.ntp2));
+  jsonGetStr(json.c_str(), "ntp3",       g.ntp3,        sizeof(g.ntp3));
   Serial.println(F("> [Cfg] Loaded /config.json"));
 }
 
