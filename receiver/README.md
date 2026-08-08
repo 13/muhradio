@@ -18,6 +18,11 @@ Bresser weather stations, publishes JSON to MQTT, and serves a live WebSocket we
   - ESP8266: synchronous updater on port 8080 (avoids AsyncWebServer conflict)
   - Supports single firmware.bin, single littlefs.bin, or combined `ota_bundle.bin`
 - CC1101: interrupt-driven receive (FALLING edge on GDO0), RXFIFO overflow watchdog
+- Web auth: optional HTTP basic auth (`WEB_PASS`) on all mutating endpoints and
+  OTA; WiFi/MQTT passwords are never returned by the settings API (masked `***`)
+- Node health: per-uid last-seen / packet count / RSSI / battery table at
+  `GET /nodes`, published per node to `{MQTT_TOPIC}/{uid}/health` (retained,
+  low-battery flag below 2.7 V)
 
 ## Supported boards
 
@@ -137,6 +142,8 @@ reception on ESP8266 where WiFi can block the main loop for several seconds.
    cp pio_secrets_example.py pio_secrets.py
    # fill in WIFI_SSID, WIFI_PASS, MQTT_USER, MQTT_PASS
    # optional: AES_KEY = "..." (must match transmitter, custom sensors only)
+   # recommended: WEB_PASS = "..." — enables basic auth on /update, /reboot,
+   #              /api/* and sets the espota/OTA password (user: WEB_USER, default admin)
    ```
 
 3. **Build and upload**:
@@ -188,15 +195,18 @@ LoRa and Bresser receivers publish directly to port 1883.
 
 ```
 {MQTT_TOPIC}/{uid}/json          ← packet JSON
+{MQTT_TOPIC}/{uid}/health        ← retained node health: last-seen, count, RSSI, VCC, low-bat
 {MQTT_TOPIC_LWT}/{hostname}/LWT  ← online / offline
 {MQTT_TOPIC_LWT}/{hostname}/IP
 {MQTT_TOPIC_LWT}/{hostname}/VERSION
 ```
 
+The same health data is served as one JSON table at `GET /nodes`.
+
 ### Bresser 7003600
 
 ```
-muh/bresser/{sensor_id}/json     ← weather JSON (published on every reception)
+{MQTT_TOPIC_BRESSER}/{sensor_id}/json  ← weather JSON (default muh/bresser, every reception)
 {MQTT_TOPIC_LWT}/{hostname}/LWT
 {MQTT_TOPIC_LWT}/{hostname}/IP
 {MQTT_TOPIC_LWT}/{hostname}/VERSION

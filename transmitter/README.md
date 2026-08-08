@@ -47,6 +47,10 @@ VCC (battery voltage) is always appended to every packet.
 | 13 | G_BME | uint16 | kΩ | BME680 gas resistance |
 | 14 | VCC | uint8 | V×10 | supply voltage |
 
+The table is defined once in [../shared/fields.h](../shared/fields.h) and used
+by both transmitter and receiver; a native round-trip test
+(`pio test -e native_test`) guards it against drift.
+
 ## Hardware
 
 ### Arduino Pro Mini → LoRa (RFM95W / SX1276)

@@ -1,5 +1,7 @@
 # <img src="assets/muhradio.png" width="30" height="30" /> muhradio
 
+[![ci](https://github.com/13/muhradio/actions/workflows/ci.yml/badge.svg)](https://github.com/13/muhradio/actions/workflows/ci.yml)
+
 A home sensor network with battery-powered transmitter nodes reporting sensor
 data to one or more receivers that push it to MQTT and a live web UI.
 Supports two radio transports: **LoRa** (SX1276/RFM95W) and **CC1101**.
@@ -53,6 +55,20 @@ Optional AES-128 ECB encryption (PKCS#7 padding) is enabled by setting
 `AES_KEY` in `pio_secrets.py` on **both** transmitter and receiver.
 
 See [transmitter/README.md](transmitter/README.md) for the full field table.
+The field tables (sizes, scales, signedness, plausibility ranges) live in
+[shared/fields.h](shared/fields.h) — the single source used by both sides.
+
+## Tests
+
+Both projects have host-side unit tests (packet round-trip, JSON building,
+config parsing, Bresser decoding, node health table) that run without hardware:
+
+```sh
+cd transmitter && pio test -e native_test
+cd receiver    && pio test -e native_test
+```
+
+CI runs them plus a firmware build matrix on every push.
 
 ## Quick start
 
