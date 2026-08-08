@@ -69,7 +69,15 @@ void setup() {
   randomSeed(analogRead(0));
   Node::init();
   Power::init();
-  Transport::init();
+  for (uint8_t attempt = 1; !Transport::init(); attempt++) {
+    if (attempt >= 3) {
+#ifdef VERBOSE
+      Serial.println(F("> Radio init failed — sleeping forever"));
+#endif
+      Power::sleepDeep(); // dead radio: don't burn the battery on wake/send cycles
+    }
+    delay(250);
+  }
   vRef.begin();
   digitalWrite(LED_BUILTIN, LOW);
 

@@ -38,6 +38,11 @@ namespace Power {
     for (uint16_t i = 0; i < t / 8; i++) {
       LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
     }
+    // Remainder in 4/2/1 s steps so e.g. t=10 sleeps ~10 s, not 8 s
+    uint8_t r = t % 8;
+    if (r & 4) LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
+    if (r & 2) LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);
+    if (r & 1) LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
   }
 
   inline void init() {
@@ -57,7 +62,7 @@ namespace Power {
 #elif defined(DS_S) && defined(DS_M)
 #error "Define only one of DS_S (seconds) or DS_M (minutes), not both"
 #elif defined(DS_S)
-    static_assert(DS_S >= 8, "DS_S must be >= 8 (minimum sleep period is SLEEP_8S)");
+    static_assert(DS_S >= 1, "DS_S must be >= 1 (0 means sleep forever)");
     sleepDeep(DS_S);
 #elif defined(DS_M)
     sleepDeep((uint16_t)DS_M * 60);
