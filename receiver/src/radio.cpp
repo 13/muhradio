@@ -69,18 +69,17 @@ static void _hexToBytes(const char* hex, byte* out, uint8_t len) {
 // ── ISR-safe LoRa receive buffer ───────────────────────────────────────────────
 #ifdef USE_LORA
 
-static volatile bool _pktReady = false;
+static volatile bool _pktReady  = false;
+static volatile bool _loraFlag  = false; // ISR → main-loop handoff
 static RxPacket      _rxPkt;
 
+// SPI transfers don't belong in an ISR (crash-prone on ESP32 when the bus is
+// shared) — only flag the event here; pending() drains the FIFO from the main
+// loop. A packet arriving before the drain overwrites the FIFO — same
+// tradeoff the CC1101 path has.
 static void ISR_ATTR _onReceive(int size) {
   if (_pktReady || size == 0 || size > (int)sizeof(_rxPkt.buf)) return;
-  uint8_t l = 0;
-  while (LoRa.available() && l < sizeof(_rxPkt.buf))
-    _rxPkt.buf[l++] = LoRa.read();
-  _rxPkt.len  = l;
-  _rxPkt.rssi = LoRa.packetRssi();
-  _rxPkt.snr  = LoRa.packetSnr();
-  _pktReady   = true;
+  _loraFlag = true;
 }
 #endif // USE_LORA
 
@@ -181,6 +180,18 @@ void Radio::init() {
 bool Radio::pending() {
   bool ready = false;
 #ifdef USE_LORA
+  if (!_pktReady && _loraFlag) {
+    _loraFlag = false;
+    uint8_t l = 0;
+    while (LoRa.available() && l < sizeof(_rxPkt.buf))
+      _rxPkt.buf[l++] = LoRa.read();
+    if (l > 0) {
+      _rxPkt.len  = l;
+      _rxPkt.rssi = LoRa.packetRssi();
+      _rxPkt.snr  = LoRa.packetSnr();
+      _pktReady   = true;
+    }
+  }
   ready = _pktReady;
 #endif
 #ifdef USE_CC1101

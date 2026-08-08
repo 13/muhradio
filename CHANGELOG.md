@@ -3,6 +3,18 @@
 Components are tagged independently: `receiver/vX.Y.Z` and `transmitter/vX.Y.Z`.
 History before the versions below: see `git log`.
 
+## receiver/v1.7.0 — 2026-08-08
+
+- LoRa receive: FIFO drained from the main loop instead of inside the ISR
+  (SPI in interrupt context is crash-prone on ESP32)
+- Node health publishing waits for NTP sync — no retained records with
+  1970 timestamps after boot
+
+## transmitter/v1.7.0 — 2026-08-08
+
+- Build-time UID override: `NODE_UID=42 pio run -e <env> -t upload` wins
+  over the env's `CUSTOM_UID` (validated 1-4095)
+
 ## receiver/v1.6.1 — 2026-08-08
 
 - Release workflow: single publish job collects all board artifacts —

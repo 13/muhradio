@@ -31,6 +31,17 @@ if '/' in tag: tag = tag.split('/', 1)[1]
 print(f"'-DVERSION=\"{ver} ({build_time})\"'")
 print(f"'-DVERSIONTAG=\"{tag}\"'")
 
+# One-off UID override without editing platformio.ini:
+#   NODE_UID=42 pio run -e cc1101_si7021 -t upload
+# Wins over the env's CUSTOM_UID (see node.h).
+uid = os.environ.get('NODE_UID')
+if uid:
+    if uid.isdigit() and 1 <= int(uid) <= 4095:
+        print(f"'-DNODE_UID_OVERRIDE={int(uid)}'")
+    else:
+        print(f"ERROR: NODE_UID must be a decimal 1-4095, got '{uid}'", file=sys.stderr)
+        sys.exit(1)
+
 # AES key — read from pio_secrets.py (gitignored, never committed)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:

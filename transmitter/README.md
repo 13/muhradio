@@ -156,6 +156,13 @@ match exactly on both transmitter and receiver. `pio_secrets.py` is gitignored.
 pio run -e cc1101_button -t upload
 ```
 
+One-off UID without editing `platformio.ini` (wins over the env's `CUSTOM_UID`;
+remember to add the node to the registry):
+
+```sh
+NODE_UID=42 pio run -e cc1101_si7021 -t upload
+```
+
 ## I2C address notes
 
 | Sensor | Default I2C address |

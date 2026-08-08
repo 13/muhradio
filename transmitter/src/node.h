@@ -7,7 +7,9 @@ namespace Node {
   static uint16_t _uid = 0;
 
   static uint16_t _generate() {
-#ifdef CUSTOM_UID
+#if defined(NODE_UID_OVERRIDE)
+    return (uint16_t)NODE_UID_OVERRIDE; // NODE_UID=<n> env var at build time
+#elif defined(CUSTOM_UID)
     return (uint16_t)CUSTOM_UID;        // decimal in config, hex only for display
 #else
     return (uint16_t)random(256, 4096);
@@ -15,7 +17,7 @@ namespace Node {
   }
 
   inline void init() {
-#if defined(CUSTOM_UID) || defined(GEN_UID)
+#if defined(NODE_UID_OVERRIDE) || defined(CUSTOM_UID) || defined(GEN_UID)
     // CUSTOM_UID / GEN_UID always win — write to EEPROM so future boots without
     // the flag still load the intended UID.
     _uid = _generate();
