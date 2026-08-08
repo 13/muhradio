@@ -42,19 +42,8 @@
 
 static constexpr uint8_t ADDR_RECEIVER = 0x15;
 
-// ── Field table (matches transmitter packet.h) ─────────────────────────────────
-static constexpr uint8_t FIELD_SIZES[]  = {2,1,1,1,1, 2,2,2,2,4, 2,2,4,2,1};
-static constexpr uint8_t FIELD_SCALES[] = {1,1,1,1,1, 10,10,10,10,10, 10,10,10,1,10};
-static constexpr bool    FIELD_SIGNED[] = {
-  false,false,false,false,false,
-  true,true,true,true,false,
-  true,true,false,false,false
-};
-static const char* const FIELD_NAMES[] = {
-  "COUNTER","BUTTON","SWITCH","PIR","RADAR",
-  "T_SI","H_SI","T_DS","T_BMP","P_BMP",
-  "T_BME","H_BME","P_BME","G_BME","VCC"
-};
+// ── Field tables shared with the transmitter ───────────────────────────────────
+#include "../../shared/fields.h"
 
 // ── AES globals ────────────────────────────────────────────────────────────────
 #ifdef USE_CRYPTO
@@ -105,41 +94,7 @@ static void ISR_ATTR _cc1101ISR() { _gdo0Flag = true; }
 #endif
 #endif
 
-// ── Minimal JSON builder (no heap, no ArduinoJson) ────────────────────────────
-struct JsonBuilder {
-  char*  buf;
-  size_t cap;
-  size_t n;
-  bool   sep;
-
-  JsonBuilder(char* b, size_t c) : buf(b), cap(c), n(0), sep(false) {
-    buf[n++] = '{';
-  }
-  void finish() {
-    if (n < cap - 1) { buf[n++] = '}'; buf[n] = '\0'; }
-  }
-  bool ok() const { return n < cap - 16; }
-
-  void kv(const char* k, long v) {
-    _key(k); n += snprintf(buf+n, cap-n, "%ld", v);
-  }
-  void kv(const char* k, float v) {
-    _key(k); n += snprintf(buf+n, cap-n, "%.1f", v);
-  }
-  void kvs(const char* k, const char* v) {
-    _key(k);
-    if (n < cap) buf[n++] = '"';
-    for (const char* s = v; *s && n < cap-2; s++) buf[n++] = *s;
-    if (n < cap) buf[n++] = '"';
-  }
-
-private:
-  void _key(const char* k) {
-    if (sep && n < cap) buf[n++] = ',';
-    n += snprintf(buf+n, cap-n, "\"%s\":", k);
-    sep = true;
-  }
-};
+#include "jsonbuilder.h"
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
@@ -181,8 +136,14 @@ void Radio::init() {
 #endif
   ELECHOUSE_cc1101.setSpiPin(CC1101_SCK, CC1101_MISO, CC1101_MOSI, CC1101_SS);
   ELECHOUSE_cc1101.Init();
-  if (!ELECHOUSE_cc1101.getCC1101()) {
-    Serial.println(F("SPI ERROR — check wiring"));
+  for (uint8_t attempt = 1; !ELECHOUSE_cc1101.getCC1101(); attempt++) {
+    if (attempt >= 3) {
+      Serial.println(F("SPI ERROR — check wiring, rebooting"));
+      delay(2000);
+      ESP.restart();
+    }
+    delay(200);
+    ELECHOUSE_cc1101.Init();
   }
 #ifdef CC1101_GDO0
   ELECHOUSE_cc1101.setGDO0(CC1101_GDO0);
@@ -348,22 +309,34 @@ DecodedPacket Radio::decode(const RxPacket& pkt, time_t ts, const char* nodeId) 
   jb.kv("uid", (long)uid);
   jb.kv("pid", (long)pid);
 
+  uint8_t valsLen = payloadLen - 5;
   uint8_t pos = 0;
-  for (uint8_t bit = 0; bit < 15; bit++) {
+  for (uint8_t bit = 0; bit < Fields::COUNT; bit++) {
     if (!(bmap >> bit & 1)) continue;
+    if (pos + Fields::SIZES[bit] > valsLen) {
+      Serial.printf("> [Radio] truncated at %s (pos=%u len=%u)\n",
+                    Fields::NAMES[bit], pos, valsLen);
+      break;
+    }
     int32_t v = 0;
-    for (uint8_t b = 0; b < FIELD_SIZES[bit]; b++)
+    for (uint8_t b = 0; b < Fields::SIZES[bit]; b++)
       v |= (int32_t)vals[pos + b] << (8 * b);
-    if (FIELD_SIGNED[bit] && (v & 0x8000)) v |= 0xFFFF0000; // sign-extend int16
-    pos += FIELD_SIZES[bit];
-    if (FIELD_SCALES[bit] > 1)
-      jb.kv(FIELD_NAMES[bit], (float)v / FIELD_SCALES[bit]);
+    if (Fields::IS_SIGNED[bit] && (v & 0x8000)) v |= 0xFFFF0000; // sign-extend int16
+    pos += Fields::SIZES[bit];
+    if (v < Fields::MIN_RAW[bit] || v > Fields::MAX_RAW[bit]) {
+      Serial.printf("> [Radio] %s out of range: %ld\n", Fields::NAMES[bit], (long)v);
+      continue;
+    }
+    if (Fields::SCALES[bit] > 1)
+      jb.kv(Fields::NAMES[bit], (float)v / Fields::SCALES[bit]);
     else
-      jb.kv(FIELD_NAMES[bit], (long)v);
+      jb.kv(Fields::NAMES[bit], (long)v);
   }
 
   jb.kv("RSSI", (long)pkt.rssi);
-  jb.kv("SNR",  (long)(int)pkt.snr);
+#ifdef USE_LORA
+  jb.kv("SNR",  (long)(int)pkt.snr); // CC1101 has no SNR — omit instead of a fake 0
+#endif
   jb.kvs("RN",  nodeId);
   jb.kv("timestamp", (long)ts);
   jb.finish();
