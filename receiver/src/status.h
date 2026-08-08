@@ -37,12 +37,15 @@ struct Status {
       uptime, rssi, memfree, memfrag);
     if (n > cap - 1) n = cap - 1;
 
+    // Drop a field whole when it doesn't fit — output must stay valid JSON
     auto kvs = [&](const char* k, const char* v) {
+      size_t save = n;
       n += snprintf(buf + n, cap - n, "\"%s\":\"", k);
       if (n > cap - 1) n = cap - 1;
-      n = jsonAppendEscaped(buf, n, cap, v);
-      n += snprintf(buf + n, cap - n, "\",");
-      if (n > cap - 1) n = cap - 1;
+      bool tr = false;
+      n = jsonAppendEscaped(buf, n, cap, v, &tr);
+      if (tr || n + 4 > cap) { n = save; buf[n] = '\0'; return; }
+      buf[n++] = '"'; buf[n++] = ',';
     };
     kvs("ssid",        ssid);
     kvs("ip",          ip);
@@ -58,13 +61,16 @@ struct Status {
     if (n > cap - 1) n = cap - 1;
 
     for (int i = 0; i < MAX_PACKETS; i++) {
-      if (n >= cap - 4) break;
+      size_t save = n;
+      if (n + 6 > cap) break;
       if (i > 0) buf[n++] = ',';
       buf[n++] = '"';
-      n = jsonAppendEscaped(buf, n, cap - 2, packets[i]); // keep room for "]}"
-      if (n < cap) buf[n++] = '"';
+      bool tr = false;
+      n = jsonAppendEscaped(buf, n, cap - 3, packets[i], &tr); // room for "]}\0
+      if (tr || n + 4 > cap) { n = save; break; } // drop partial element whole
+      buf[n++] = '"';
     }
-    if (n < cap - 2) { buf[n++] = ']'; buf[n++] = '}'; }
-    buf[n] = '\0';
+    if (n > cap - 3) n = cap - 3; // unreachable unless cap is tiny
+    buf[n++] = ']'; buf[n++] = '}'; buf[n] = '\0';
   }
 };

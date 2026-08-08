@@ -41,8 +41,9 @@ void Cfg::load() {
   strlcpy(g.mqtt_user,   MQTT_USER,          sizeof(g.mqtt_user));
   strlcpy(g.mqtt_pass,   MQTT_PASS,          sizeof(g.mqtt_pass));
   strlcpy(g.desc,        DEVICE_DESCRIPTION, sizeof(g.desc));
-  g.tz_offset = TZ_OFFSET;
-  g.dst_mode  = TZ_DST_MODE;
+  g.tz_offset  = TZ_OFFSET;
+  g.dst_mode   = TZ_DST_MODE;
+  g.node_stats = NODE_STATS;
   strlcpy(g.ntp1, NTP1, sizeof(g.ntp1));
   strlcpy(g.ntp2, NTP2, sizeof(g.ntp2));
   strlcpy(g.ntp3, NTP3, sizeof(g.ntp3));
@@ -80,6 +81,7 @@ void Cfg::load() {
   jsonGetStr(json.c_str(), "desc",        g.desc,        sizeof(g.desc));
   _getI16(json.c_str(), "tz_offset",  g.tz_offset);
   _getU8 (json.c_str(), "dst_mode",   g.dst_mode);
+  _getU8 (json.c_str(), "node_stats", g.node_stats);
   jsonGetStr(json.c_str(), "ntp1",       g.ntp1,        sizeof(g.ntp1));
   jsonGetStr(json.c_str(), "ntp2",       g.ntp2,        sizeof(g.ntp2));
   jsonGetStr(json.c_str(), "ntp3",       g.ntp3,        sizeof(g.ntp3));
@@ -110,11 +112,11 @@ bool Cfg::save() {
     "\"wifi_ssid\":\"%s\",\"wifi_pass\":\"%s\","
     "\"mqtt_server\":\"%s\",\"mqtt_port\":%u,"
     "\"mqtt_user\":\"%s\",\"mqtt_pass\":\"%s\","
-    "\"desc\":\"%s\",\"tz_offset\":%d,\"dst_mode\":%u,"
+    "\"desc\":\"%s\",\"tz_offset\":%d,\"dst_mode\":%u,\"node_stats\":%u,"
     "\"ntp1\":\"%s\",\"ntp2\":\"%s\",\"ntp3\":\"%s\"}",
     CFG_VER,
     ws, wp, ms, g.mqtt_port, mu, mp, ds, (int)g.tz_offset, (unsigned)g.dst_mode,
-    n1, n2, n3);
+    (unsigned)g.node_stats, n1, n2, n3);
 
   File f = LittleFS.open("/config.json", "w");
   if (!f) return false;

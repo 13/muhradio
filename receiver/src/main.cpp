@@ -79,7 +79,7 @@ void loop() {
     // Hold off until NTP has synced: pre-sync epoch (~1970) would persist
     // nonsense last-seen values in the retained messages.
     NodeEntry* e;
-    while (Net::nowUtc() > 1577836800 &&
+    while (Cfg::g.node_stats && Net::nowUtc() > 1577836800 &&
            (e = g_nodeTable.nextDirty()) != nullptr) {
       char topic[96], json[160];
       snprintf(topic, sizeof(topic), "%s/%s/nodes/%u",
@@ -105,7 +105,8 @@ void loop() {
     DecodedPacket dp = Radio::decode(Radio::take(), Net::nowUtc(), Net::nodeId);
     if (dp.valid) {
       Net::publish(dp.topic, dp.json, dp.retained);
-      g_nodeTable.update(dp.uid, (uint32_t)Net::nowUtc(), dp.rssi, dp.vcc10);
+      if (Cfg::g.node_stats)
+        g_nodeTable.update(dp.uid, (uint32_t)Net::nowUtc(), dp.rssi, dp.vcc10);
       myData.addPacket(dp.json);
       Web::notify(myData, Net::nowUtc());
     }

@@ -119,7 +119,12 @@ void Web::begin(Status& s) {
     { r->send(200, "application/json",
         _status ? _serialize(*_status, _status->timestamp) : "{}"); });
   _server.on("/nodes", HTTP_GET, [](AsyncWebServerRequest* r) {
-    char buf[2048];
+    // static: the async context stack on ESP8266 is too small for 2 KB locals
+    static char buf[2048];
+    if (!Cfg::g.node_stats) {
+      r->send(200, "application/json", "{\"enabled\":false,\"nodes\":[]}");
+      return;
+    }
     g_nodeTable.toJson(buf, sizeof(buf), (uint32_t)Net::nowUtc(), Net::nodeId);
     r->send(200, "application/json", buf);
   });
@@ -298,7 +303,7 @@ void Web::begin(Status& s) {
   // Settings — GET returns current config JSON, POST updates + reboots.
   _server.on("/api/settings", HTTP_GET, [](AsyncWebServerRequest* r) {
     if (!_auth(r)) return;
-    char buf[900];
+    static char buf[900]; // async-context stack is tight on ESP8266
     size_t n = 0;
     auto ap = [&](const char* s) { n = jsonAppendEscaped(buf, n, sizeof(buf), s); };
     auto as = [&](const char* key, const char* val) {
@@ -316,8 +321,10 @@ void Web::begin(Status& s) {
     as("mqtt_user",   Cfg::g.mqtt_user);
     as("mqtt_pass",   Cfg::g.mqtt_pass[0] ? "***" : "");
     as("desc",        Cfg::g.desc);
-    n += snprintf(buf + n, sizeof(buf) - n, "\"tz_offset\":%d,\"dst_mode\":%u,",
-                  (int)Cfg::g.tz_offset, (unsigned)Cfg::g.dst_mode);
+    n += snprintf(buf + n, sizeof(buf) - n,
+                  "\"tz_offset\":%d,\"dst_mode\":%u,\"node_stats\":%u,",
+                  (int)Cfg::g.tz_offset, (unsigned)Cfg::g.dst_mode,
+                  (unsigned)Cfg::g.node_stats);
     as("ntp1", Cfg::g.ntp1);
     as("ntp2", Cfg::g.ntp2);
     // last key: no trailing comma
@@ -367,9 +374,10 @@ void Web::begin(Status& s) {
       return true;
     };
     long v;
-    if (getInt("mqtt_port", v)) Cfg::g.mqtt_port = (uint16_t)v;
-    if (getInt("tz_offset", v)) Cfg::g.tz_offset = (int16_t)v;
-    if (getInt("dst_mode",  v)) Cfg::g.dst_mode  = (uint8_t)v;
+    if (getInt("mqtt_port",  v)) Cfg::g.mqtt_port  = (uint16_t)v;
+    if (getInt("tz_offset",  v)) Cfg::g.tz_offset  = (int16_t)v;
+    if (getInt("dst_mode",   v)) Cfg::g.dst_mode   = (uint8_t)v;
+    if (getInt("node_stats", v)) Cfg::g.node_stats = v ? 1 : 0;
     bool ok = Cfg::save();
     r->send(200, "application/json",
       ok ? "{\"success\":true}" : "{\"success\":false,\"message\":\"Save failed\"}");

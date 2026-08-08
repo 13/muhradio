@@ -15,6 +15,7 @@ struct Conf {
   char     desc       [64];
   int16_t  tz_offset;   // UTC offset in minutes, e.g. 60 = UTC+1
   uint8_t  dst_mode;    // 0=standard only, 1=summer only, 2=auto EU rules
+  uint8_t  node_stats;  // 1 = track/publish per-node health (default off)
   char     ntp1[64];
   char     ntp2[64];
   char     ntp3[64];

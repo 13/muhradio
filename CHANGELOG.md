@@ -3,6 +3,15 @@
 Components are tagged independently: `receiver/vX.Y.Z` and `transmitter/vX.Y.Z`.
 History before the versions below: see `git log`.
 
+## receiver/v1.8.0 — 2026-08-08
+
+- Node statistics now opt-in: new Settings toggle (default **off**) gates the
+  health table, `GET /nodes` and the retained MQTT health topics
+- Web handlers use static buffers — the async-context stack on ESP8266 is too
+  small for 2 KB locals
+- Status JSON (websocket/`/json`) drops fields/packets whole on overflow —
+  output is always valid JSON
+
 ## receiver/v1.7.1 — 2026-08-08
 
 - **Fix config wipe with WEB_PASS set:** if the settings form failed to load

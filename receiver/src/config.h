@@ -15,6 +15,12 @@
 #  define HEAP_MIN_FREE 6144
 #endif
 
+// Per-node health statistics (/nodes + retained MQTT health topics).
+// Off by default; toggle at runtime on the Settings page.
+#ifndef NODE_STATS
+#  define NODE_STATS 0
+#endif
+
 // ── Device ────────────────────────────────────────────────────────────────────
 #define DEVICE_DESCRIPTION "Receiver"
 
