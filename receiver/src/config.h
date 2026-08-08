@@ -10,6 +10,11 @@
 // ── Network behaviour ─────────────────────────────────────────────────────────
 #define REQUIRES_INTERNET  // reboot when WiFi is lost; remove for offline use
 
+// Reboot when free heap stays below this for 3 consecutive minute marks.
+#ifndef HEAP_MIN_FREE
+#  define HEAP_MIN_FREE 6144
+#endif
+
 // ── Device ────────────────────────────────────────────────────────────────────
 #define DEVICE_DESCRIPTION "Receiver"
 

@@ -10,9 +10,41 @@
 #include "net.h"
 #include "web.h"
 #include "nodetable.h"
+#ifdef ESP32
+#include <esp_task_wdt.h>
+#endif
 
 static Status myData;
 NodeTable g_nodeTable; // fed by the radio path, served via GET /nodes
+
+// Watchdog: recover from a hung driver/network stack without a power cycle.
+// 60 s covers the worst legitimate loop iteration (blocking MQTT TCP connect
+// ~15 s + NTP retries); enabled after Net::begin so boot WiFi wait is exempt.
+static constexpr uint32_t WDT_TIMEOUT_S = 60;
+
+static void wdtBegin() {
+#if defined(ESP32)
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+  esp_task_wdt_config_t cfg = {};
+  cfg.timeout_ms    = WDT_TIMEOUT_S * 1000;
+  cfg.trigger_panic = true;
+  if (esp_task_wdt_init(&cfg) != ESP_OK) esp_task_wdt_reconfigure(&cfg);
+#else
+  esp_task_wdt_init(WDT_TIMEOUT_S, true);
+#endif
+  esp_task_wdt_add(NULL);
+#elif defined(ESP8266)
+  ESP.wdtEnable(WDTO_8S); // software WDT; hardware WDT stays armed behind it
+#endif
+}
+
+static inline void wdtFeed() {
+#if defined(ESP32)
+  esp_task_wdt_reset();
+#elif defined(ESP8266)
+  ESP.wdtFeed();
+#endif
+}
 
 void setup() {
   Serial.begin(115200);
@@ -30,10 +62,12 @@ void setup() {
   Radio::init();
 #endif
 
+  wdtBegin();
   Serial.println(F("> [INIT] Ready..."));
 }
 
 void loop() {
+  wdtFeed();
   Web::loop();
 
   if (Net::loop(myData)) {

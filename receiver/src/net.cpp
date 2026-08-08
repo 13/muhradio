@@ -236,6 +236,21 @@ bool Net::loop(Status& s) {
   _printUptime(_uptime);
 #endif
 
+  // Heap-exhaustion guard: a slow leak ends in malloc failures and a wedged
+  // device — reboot instead once free heap stays critically low.
+  {
+    static uint8_t lowHeapMarks = 0;
+    if (ESP.getFreeHeap() < HEAP_MIN_FREE) {
+      if (++lowHeapMarks >= 3) {
+        Serial.println(F("> [Net] Heap critically low — rebooting"));
+        delay(100);
+        ESP.restart();
+      }
+    } else {
+      lowHeapMarks = 0;
+    }
+  }
+
   if (WiFi.status() != WL_CONNECTED) {
 #ifdef REQUIRES_INTERNET
     if (_uptime % 5 == 0) {
