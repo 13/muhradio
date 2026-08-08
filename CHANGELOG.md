@@ -3,6 +3,12 @@
 Components are tagged independently: `receiver/vX.Y.Z` and `transmitter/vX.Y.Z`.
 History before the versions below: see `git log`.
 
+## receiver/v1.4.1 — 2026-08-08
+
+- ESP8266 (d1_mini) OTA bundles: merge_bins.py re-enabled for the d1_mini
+  envs, so `pio run -t otabundle` and release artifacts work there too
+  (the v1.4.0 release lacked d1_mini binaries)
+
 ## receiver/v1.4.0 — 2026-08-08
 
 - Watchdog: task WDT (ESP32) / software WDT (ESP8266), 60 s, recovers a hung
