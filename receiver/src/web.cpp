@@ -368,6 +368,61 @@ void Web::begin(Status& s) {
     _pendingReboot = true;
   });
 
+  // Config backup/restore. Contains plaintext secrets, so both endpoints
+  // require WEB_PASS to be configured — refused entirely on open devices.
+  _server.on("/api/config/export", HTTP_GET, [](AsyncWebServerRequest* r) {
+    if (!WEB_PASS[0]) {
+      r->send(403, "application/json",
+        "{\"success\":false,\"message\":\"set WEB_PASS to enable export\"}");
+      return;
+    }
+    if (!_auth(r)) return;
+    if (!LittleFS.exists("/config.json")) {
+      r->send(404, "application/json",
+        "{\"success\":false,\"message\":\"no saved config\"}");
+      return;
+    }
+    AsyncWebServerResponse* resp =
+      r->beginResponse(LittleFS, "/config.json", "application/json");
+    resp->addHeader("Content-Disposition", "attachment; filename=config.json");
+    r->send(resp);
+  });
+
+  _server.on("/api/config/import", HTTP_POST,
+    [](AsyncWebServerRequest* r) {
+      if (!WEB_PASS[0]) {
+        r->send(403, "application/json",
+          "{\"success\":false,\"message\":\"set WEB_PASS to enable import\"}");
+        return;
+      }
+      if (!_auth(r)) return;
+      bool ok = r->_tempObject != nullptr;
+      if (ok) {
+        File f = LittleFS.open("/config.json", "w");
+        ok = f && f.print((const char*)r->_tempObject) > 0;
+        if (f) f.close();
+      }
+      r->send(ok ? 200 : 400, "application/json",
+        ok ? "{\"success\":true,\"message\":\"Config imported — rebooting\"}"
+           : "{\"success\":false,\"message\":\"invalid or missing body\"}");
+      if (ok) _pendingReboot = true;
+    },
+    nullptr,
+    [](AsyncWebServerRequest* r, uint8_t* data, size_t len, size_t index, size_t total) {
+      // Accumulate the raw body; validated and written in the request handler.
+      if (total == 0 || total > 2048) return;
+      if (index == 0) {
+        r->_tempObject = calloc(1, total + 1);
+        // Reject anything that doesn't even start like a JSON object
+        if (r->_tempObject && (len == 0 || data[0] != '{')) {
+          free(r->_tempObject);
+          r->_tempObject = nullptr;
+        }
+      }
+      if (r->_tempObject)
+        memcpy((uint8_t*)r->_tempObject + index, data, len);
+    });
+
   // Static files from LittleFS — registered last so API routes take priority.
   // Any file placed in data/ is served automatically; no route changes needed.
   _server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");

@@ -63,6 +63,14 @@ void Cfg::load() {
   String json = f.readString();
   f.close();
 
+  // Schema version: absent = 0 (pre-versioning). Newer-than-known configs
+  // still load field-by-field, but leave a trace in the log.
+  long ver = 0;
+  jsonGetLong(json.c_str(), "cfg_ver", ver);
+  if (ver > CFG_VER)
+    Serial.printf("> [Cfg] config.json cfg_ver=%ld newer than firmware (%d)\n",
+                  ver, CFG_VER);
+
   jsonGetStr(json.c_str(), "wifi_ssid",   g.wifi_ssid,   sizeof(g.wifi_ssid));
   jsonGetStr(json.c_str(), "wifi_pass",   g.wifi_pass,   sizeof(g.wifi_pass));
   jsonGetStr(json.c_str(), "mqtt_server", g.mqtt_server, sizeof(g.mqtt_server));
@@ -98,11 +106,13 @@ bool Cfg::save() {
 
   char buf[1200];
   snprintf(buf, sizeof(buf),
-    "{\"wifi_ssid\":\"%s\",\"wifi_pass\":\"%s\","
+    "{\"cfg_ver\":%d,"
+    "\"wifi_ssid\":\"%s\",\"wifi_pass\":\"%s\","
     "\"mqtt_server\":\"%s\",\"mqtt_port\":%u,"
     "\"mqtt_user\":\"%s\",\"mqtt_pass\":\"%s\","
     "\"desc\":\"%s\",\"tz_offset\":%d,\"dst_mode\":%u,"
     "\"ntp1\":\"%s\",\"ntp2\":\"%s\",\"ntp3\":\"%s\"}",
+    CFG_VER,
     ws, wp, ms, g.mqtt_port, mu, mp, ds, (int)g.tz_offset, (unsigned)g.dst_mode,
     n1, n2, n3);
 

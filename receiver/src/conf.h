@@ -1,6 +1,10 @@
 #pragma once
 #include <Arduino.h>
 
+// /config.json schema version — bump when fields are renamed/reinterpreted
+// so load() can migrate (or at least log) old/newer files.
+#define CFG_VER 1
+
 struct Conf {
   char     wifi_ssid  [64];
   char     wifi_pass  [64];
