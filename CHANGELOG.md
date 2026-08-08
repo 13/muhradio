@@ -3,6 +3,12 @@
 Components are tagged independently: `receiver/vX.Y.Z` and `transmitter/vX.Y.Z`.
 History before the versions below: see `git log`.
 
+## receiver/v1.6.1 — 2026-08-08
+
+- Release workflow: single publish job collects all board artifacts —
+  parallel per-board uploads raced on the release and dropped assets
+  (v1.6.0 shipped 21 of 24)
+
 ## receiver/v1.6.0 — 2026-08-08
 
 - **Breaking:** node health topic moved from `{MQTT_TOPIC}/{uid}/health` to

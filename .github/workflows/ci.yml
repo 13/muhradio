@@ -57,12 +57,12 @@ jobs:
   # On receiver/v* tags: build installable artifacts for every receiver board
   # and attach them to a GitHub Release. Binaries carry config.h defaults —
   # configure via /settings.html (or /api/config/import) after flashing.
-  release:
+  # Build fans out per board; a single publish job creates the release —
+  # parallel jobs mutating one release race and drop assets.
+  release-build:
     if: startsWith(github.ref, 'refs/tags/receiver/v')
     needs: [test]
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -98,6 +98,25 @@ jobs:
               cp ".pio/build/${{ matrix.env }}/$f" "../dist/${{ matrix.env }}-$f" || true
           done
           ls -la ../dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.env }}
+          path: dist/*
+          retention-days: 3
+
+  release-publish:
+    if: startsWith(github.ref, 'refs/tags/receiver/v')
+    needs: [release-build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
       - name: Extract changelog section
         run: |
           awk -v tag="$GITHUB_REF_NAME" '
@@ -106,6 +125,7 @@ jobs:
             f' CHANGELOG.md > release_notes.md
           [ -s release_notes.md ] || echo "See CHANGELOG.md" > release_notes.md
           cat release_notes.md
+          ls -la dist
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*
