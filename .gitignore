@@ -8,3 +8,9 @@ desktop.ini
 *~
 .idea/
 *.code-workspace
+
+# Generated knowledge graph (graphify update .)
+graphify-out/
+
+# Claude Code local settings
+.claude/settings.local.json
