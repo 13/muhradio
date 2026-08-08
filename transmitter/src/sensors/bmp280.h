@@ -31,6 +31,7 @@ namespace BMP280 {
     float p = _sensor.readPressure();
     if (isnan(p) || p <= 0) return;
     float t = _sensor.readTemperature();
+    if (isnan(t)) return;
     pkt.addI16(Field::T_BMP, (int16_t)round(t * 10.0f));
     pkt.addU32(Field::P_BMP, (uint32_t)round(p / 10.0f));
 #ifdef VERBOSE
