@@ -91,6 +91,7 @@ static void _connectWiFi() {
 }
 
 static void _connectMqtt() {
+  if (_mqtt.connected()) return; // already up — don't republish retained state
   char base[80], lwt[88], ip[84], ver[92];
   snprintf(base, sizeof(base), "%s/%s",      MQTT_TOPIC_LWT, Net::hostname);
   snprintf(lwt,  sizeof(lwt),  "%s/LWT",     base);
@@ -187,6 +188,7 @@ void Net::begin(Status& s) {
   }
 
   ArduinoOTA.setHostname(Net::hostname);
+  if (WEB_PASS[0]) ArduinoOTA.setPassword(WEB_PASS);
   ArduinoOTA.onStart([]()  { Serial.println(F("> [OTA] Start")); });
   ArduinoOTA.onEnd([]()    { Serial.println(F("> [OTA] Done — rebooting")); });
   ArduinoOTA.onError([](ota_error_t e) {
@@ -244,8 +246,8 @@ bool Net::loop(Status& s) {
     return false;
   }
 
-  _connectMqtt();
-  _ntpUpdate();
+  // MQTT reconnects are handled at the top of loop(); NTP hourly is plenty
+  if (_uptime % 60 == 0) _ntpUpdate();
   _updateStatus(s);
   if (s.boottime == 0) {
     time_t t = _ntp.getEpochTime();
@@ -255,8 +257,15 @@ bool Net::loop(Status& s) {
 }
 
 bool Net::publish(const char* topic, const char* payload, bool retained) {
-  if (!_mqtt.connected()) _connectMqtt();
-  if (!_mqtt.connected()) return false;
+  if (!_mqtt.connected()) {
+    // Broker down: retry at most every 5 s — a blocking TCP connect per
+    // received packet would stall the loop and overflow the radio RX FIFO.
+    unsigned long now = millis();
+    if (now - _reconnectAt < 5000) return false;
+    _reconnectAt = now;
+    _connectMqtt();
+    if (!_mqtt.connected()) return false;
+  }
   bool ok = _mqtt.publish(topic, payload, retained);
 #ifdef VERBOSE
   Serial.println(ok ? F("> [MQTT] Published") : F("> [MQTT] Publish failed"));
