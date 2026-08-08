@@ -106,8 +106,9 @@ bool Cfg::save() {
   esc(g.ntp2,        n2, sizeof(n2));
   esc(g.ntp3,        n3, sizeof(n3));
 
-  char buf[1200];
-  snprintf(buf, sizeof(buf),
+  // Worst case (all fields at max escaped length) is ~1215 bytes
+  char buf[1280];
+  int len = snprintf(buf, sizeof(buf),
     "{\"cfg_ver\":%d,"
     "\"wifi_ssid\":\"%s\",\"wifi_pass\":\"%s\","
     "\"mqtt_server\":\"%s\",\"mqtt_port\":%u,"
@@ -117,6 +118,10 @@ bool Cfg::save() {
     CFG_VER,
     ws, wp, ms, g.mqtt_port, mu, mp, ds, (int)g.tz_offset, (unsigned)g.dst_mode,
     (unsigned)g.node_stats, n1, n2, n3);
+  if (len < 0 || len >= (int)sizeof(buf)) {
+    Serial.println(F("> [Cfg] config too large — not saved"));
+    return false; // never write a truncated (invalid) config.json
+  }
 
   File f = LittleFS.open("/config.json", "w");
   if (!f) return false;
