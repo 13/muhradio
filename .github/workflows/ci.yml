@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: [transmitter, receiver]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-test-${{ runner.os }}-${{ hashFiles('**/platformio.ini') }}
+      - run: pip install platformio
+      - run: pio test -e native_test
+        working-directory: ${{ matrix.project }}
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { project: transmitter, env: node_bme680 }
+          - { project: transmitter, env: cc1101_si7021 }
+          - { project: receiver, env: esp32-s3-zero }
+          - { project: receiver, env: esp32-s3-zero-cc1101 }
+          - { project: receiver, env: d1_mini_espota }
+          - { project: receiver, env: esp32-s3-zero-bresser }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # build_flags.py derives VERSION from git describe
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-build-${{ runner.os }}-${{ matrix.env }}-${{ hashFiles('**/platformio.ini') }}
+      - run: pip install platformio
+      - run: pio run -e ${{ matrix.env }}
+        working-directory: ${{ matrix.project }}
