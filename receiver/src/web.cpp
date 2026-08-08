@@ -1,7 +1,11 @@
 #include "web.h"
 #include "config.h"
 #include "conf.h"
+#include "net.h"
+#include "nodetable.h"
 #include <version.h>
+
+extern NodeTable g_nodeTable; // defined in main.cpp
 #include <Arduino.h>
 #ifdef ESP8266
   #include <ESP8266WiFi.h>
@@ -114,6 +118,11 @@ void Web::begin(Status& s) {
   _server.on("/json", HTTP_GET, [](AsyncWebServerRequest* r)
     { r->send(200, "application/json",
         _status ? _serialize(*_status, _status->timestamp) : "{}"); });
+  _server.on("/nodes", HTTP_GET, [](AsyncWebServerRequest* r) {
+    char buf[2048];
+    g_nodeTable.toJson(buf, sizeof(buf), (uint32_t)Net::nowUtc());
+    r->send(200, "application/json", buf);
+  });
   // GET kept for the update.html link; restart deferred to loop() so the
   // response actually reaches the client.
   _server.on("/reboot", HTTP_GET | HTTP_POST, [](AsyncWebServerRequest* r) {

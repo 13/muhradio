@@ -327,6 +327,7 @@ DecodedPacket Radio::decode(const RxPacket& pkt, time_t ts, const char* nodeId) 
       Serial.printf("> [Radio] %s out of range: %ld\n", Fields::NAMES[bit], (long)v);
       continue;
     }
+    if (bit == (uint8_t)Field::VCC) result.vcc10 = (uint8_t)v;
     if (Fields::SCALES[bit] > 1)
       jb.kv(Fields::NAMES[bit], (float)v / Fields::SCALES[bit]);
     else
@@ -342,6 +343,8 @@ DecodedPacket Radio::decode(const RxPacket& pkt, time_t ts, const char* nodeId) 
   jb.finish();
 
   snprintf(result.topic, sizeof(result.topic), "%s/%u/json", MQTT_TOPIC, uid);
+  result.uid   = uid;
+  result.rssi  = (int16_t)pkt.rssi;
   result.valid = true;
 
   Serial.print(F("> [JSON] "));

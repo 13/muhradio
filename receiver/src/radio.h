@@ -9,10 +9,13 @@ struct RxPacket {
 };
 
 struct DecodedPacket {
-  char json[256];
-  char topic[64];
-  bool valid;
-  bool retained;
+  char     json[256];
+  char     topic[64];
+  bool     valid;
+  bool     retained;
+  uint16_t uid;    // sender node id (for the health table)
+  int16_t  rssi;
+  uint8_t  vcc10;  // battery V*10 if the packet carried VCC, else 0
 };
 
 namespace Radio {
