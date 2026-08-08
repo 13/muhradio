@@ -53,73 +53,13 @@ by both transmitter and receiver; a native round-trip test
 
 ## Hardware
 
-### Arduino Pro Mini → LoRa (RFM95W / SX1276)
-
-| Pro Mini | RFM95W |
-|---|---|
-| VCC (3.3 V) | 3V |
-| GND | GND |
-| D13 | SCK |
-| D12 | MISO |
-| D11 | MOSI |
-| D10 | NSS |
-| D9 | RST |
-| D2 | DIO0 |
-
-### Arduino Pro Mini → CC1101
-
-Default hardware SPI pins:
-
-| Pro Mini | CC1101 |
-|---|---|
-| VCC (3.3 V) | VCC |
-| GND | GND |
-| D13 | SCK |
-| D12 | MISO |
-| D11 | MOSI |
-| D10 | SS (CSN) |
-| D2 | GDO0 (optional) |
+All pin tables live in [docs/PINOUTS.md](../docs/PINOUTS.md) — Pro Mini →
+LoRa/CC1101 radio wiring plus I2C, DS18B20 and interrupt-sensor connections.
 
 Interrupt-driven sensors (button, switch, PIR, radar) use **D3** by default
-(the only other interrupt pin). Configure with `-DSENSOR_PIN_xxx=N`.
-
-### Sensor pin connections
-
-#### I2C sensors — Si7021 / BMP280 / BME680
-
-| Pro Mini | Sensor |
-|---|---|
-| A4 | SDA |
-| A5 | SCL |
-| VCC (3.3 V) | VCC |
-| GND | GND |
-
-All three share the same I2C bus. See [I2C address notes](#i2c-address-notes) if
+(D2 is reserved for the radio). Configure with `-DSENSOR_PIN_xxx=N`.
+I2C sensors share one bus — see [I2C address notes](#i2c-address-notes) if
 combining BMP280 and BME680.
-
-#### DS18B20 (1-Wire)
-
-| Pro Mini | DS18B20 |
-|---|---|
-| D3 (default) | DATA |
-| VCC (3.3 V) | VCC |
-| GND | GND |
-
-Place a 4.7 kΩ pull-up resistor between DATA and VCC.
-Override pin with `-DSENSOR_PIN_DS18B20=N`.
-
-#### Button / Switch / PIR / Radar (digital interrupt)
-
-| Pro Mini | Sensor |
-|---|---|
-| D3 (default) | OUT / signal |
-| VCC (3.3 V) | VCC |
-| GND | GND |
-
-D2 is reserved for the radio (DIO0 / GDO0), so D3 is the only remaining
-external-interrupt pin. Override with `-DSENSOR_PIN_BUTTON=N`,
-`-DSENSOR_PIN_SWITCH=N`, `-DSENSOR_PIN_PIR=N`, or `-DSENSOR_PIN_RADAR=N`
-(any digital pin works for non-interrupt wake if you poll instead).
 
 ## Getting started
 

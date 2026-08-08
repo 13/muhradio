@@ -40,62 +40,10 @@ Bresser weather stations, publishes JSON to MQTT, and serves a live WebSocket we
 
 ## Wiring
 
-CC1101 wiring is identical for custom sensor and Bresser environments on the same board.
-
-### LoRa — ESP32-S3 Zero
-
-| Signal | GPIO |
-|---|---|
-| SCK | 9 |
-| MISO | 7 |
-| MOSI | 8 |
-| SS | 10 |
-| RST | 11 |
-| DIO0 | 2 |
-
-### LoRa — ESP32-C3 Mini
-
-| Signal | GPIO |
-|---|---|
-| SCK | 8 |
-| MISO | 6 |
-| MOSI | 7 |
-| SS | 9 |
-| RST | 10 |
-| DIO0 | 2 |
-
-### CC1101 — ESP32-S3 Zero
-
-| Signal | GPIO |
-|---|---|
-| SCK | 9 |
-| MISO | 7 |
-| MOSI | 8 |
-| SS (CSN) | 6 |
-| GDO0 | 2 |
-
-### CC1101 — ESP32-C3 Mini
-
-| Signal | GPIO |
-|---|---|
-| SCK | 8 |
-| MISO | 6 |
-| MOSI | 7 |
-| SS (CSN) | 5 |
-| GDO0 | 2 |
-
-### CC1101 — D1 Mini (ESP8266)
-
-| Signal | GPIO | NodeMCU label |
-|---|---|---|
-| SCK | 14 | D5 |
-| MISO | 12 | D6 |
-| MOSI | 13 | D7 |
-| SS (CSN) | 15 | D8 |
-| GDO0 | 5 | D1 |
-
-GDO0 is wired and used as a FALLING-edge interrupt — required for reliable
-reception on ESP8266 where WiFi can block the main loop for several seconds.
+All pin tables live in [docs/PINOUTS.md](../docs/PINOUTS.md) — LoRa and CC1101
+wiring for ESP32-S3 Zero, ESP32-C3 Mini and D1 Mini. CC1101 wiring is identical
+for custom-sensor and Bresser environments on the same board; GDO0 is required
+(FALLING-edge interrupt).
 
 ## Radio settings
 

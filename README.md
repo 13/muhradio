@@ -37,6 +37,7 @@ to port 1883.
 |---|---|
 | [transmitter/](transmitter/) | Arduino Pro Mini sensor node (LoRa or CC1101) |
 | [receiver/](receiver/) | ESP32 / ESP8266 gateway — MQTT, WebSocket, OTA |
+| [docs/PINOUTS.md](docs/PINOUTS.md) | Wiring reference for all boards |
 
 ## Wire format
 
