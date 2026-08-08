@@ -239,6 +239,23 @@
           Reset to defaults
         </button>
 
+        <!-- Config backup/restore (endpoints require WEB_PASS) -->
+        <div class="flex gap-3">
+          <button id="exportBtn"
+                  class="flex-1 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800
+                         text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-700
+                         py-3 px-4 rounded-xl transition-colors font-medium text-sm min-h-[44px]">
+            Export config
+          </button>
+          <button id="importBtn"
+                  class="flex-1 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800
+                         text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-700
+                         py-3 px-4 rounded-xl transition-colors font-medium text-sm min-h-[44px]">
+            Import config
+          </button>
+          <input id="importFile" type="file" accept=".json,application/json" class="hidden">
+        </div>
+
         <p id="statusMsg" class="text-center text-sm min-h-[1.25rem]"></p>
 
       </div>
@@ -422,6 +439,36 @@
         try {
           const d = await fetch('/api/reset', { method: 'POST' }).then(r => r.json());
           if (!d.success) throw new Error('Reset failed');
+          elStep.textContent = 'Rebooting…';
+          elMsg.textContent  = 'Waiting for device to come back online.';
+          waitForReboot();
+        } catch (err) {
+          hideModal();
+          statusMsg.textContent = err.message;
+          statusMsg.className   = 'text-center text-sm text-red-600 dark:text-red-400';
+        }
+      });
+
+      // ── Config backup/restore ─────────────────────────────────────────────────
+      document.getElementById('exportBtn').addEventListener('click', () => {
+        window.location.href = '/api/config/export'; // 403 until WEB_PASS is set
+      });
+
+      const importFile = document.getElementById('importFile');
+      document.getElementById('importBtn').addEventListener('click', () => importFile.click());
+      importFile.addEventListener('change', async () => {
+        const f = importFile.files[0];
+        importFile.value = '';
+        if (!f) return;
+        if (!confirm('Import this config and reboot?')) return;
+        statusMsg.textContent = '';
+        showModal('Importing…', 'Writing configuration and rebooting.');
+        try {
+          const d = await fetch('/api/config/import', {
+            method: 'POST',
+            body: await f.text(),
+          }).then(r => r.json());
+          if (!d.success) throw new Error(d.message ?? 'Import failed');
           elStep.textContent = 'Rebooting…';
           elMsg.textContent  = 'Waiting for device to come back online.';
           waitForReboot();

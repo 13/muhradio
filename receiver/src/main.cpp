@@ -73,12 +73,16 @@ void loop() {
   if (Net::loop(myData)) {
     Web::notify(myData, Net::nowUtc());
     // Publish health for nodes heard since the last minute tick (retained,
-    // one small message per uid so the 512-byte MQTT buffer is never an issue)
+    // one small message per uid so the 512-byte MQTT buffer is never an issue).
+    // Topic lives under this receiver's hostname — parallel receivers must
+    // not overwrite each other's retained health records.
     NodeEntry* e;
     while ((e = g_nodeTable.nextDirty()) != nullptr) {
-      char topic[64], json[128];
-      snprintf(topic, sizeof(topic), "%s/%u/health", MQTT_TOPIC, e->uid);
-      NodeTable::entryJson(*e, (uint32_t)Net::nowUtc(), json, sizeof(json));
+      char topic[96], json[160];
+      snprintf(topic, sizeof(topic), "%s/%s/nodes/%u",
+               MQTT_TOPIC_LWT, Net::hostname, e->uid);
+      NodeTable::entryJson(*e, (uint32_t)Net::nowUtc(), Net::nodeId,
+                           json, sizeof(json));
       if (!Net::publish(topic, json, true)) break; // broker down — retry next tick
       e->dirty = false;
     }

@@ -60,25 +60,26 @@ static void test_dirty_tracking() {
 
 static void test_entry_json() {
   t.update(35, 1000, -80, 26);
-  char one[128];
-  NodeTable::entryJson(*t.get(35), 1090, one, sizeof(one));
+  char one[160];
+  NodeTable::entryJson(*t.get(35), 1090, "ab12", one, sizeof(one));
   TEST_ASSERT_EQUAL_STRING(
     "{\"uid\":35,\"last\":1000,\"age\":90,\"count\":1,"
-    "\"rssi\":-80,\"vcc\":2.6,\"low\":1}", one);
+    "\"rssi\":-80,\"vcc\":2.6,\"low\":1,\"node\":\"ab12\"}", one);
 }
 
 static void test_table_json_wellformed() {
   for (uint16_t u = 1; u <= 5; u++) t.update(u, 1000, -80, 30);
-  size_t n = t.toJson(buf, sizeof(buf), 2000);
+  size_t n = t.toJson(buf, sizeof(buf), 2000, "ab12");
   TEST_ASSERT_EQUAL_CHAR('{', buf[0]);
   TEST_ASSERT_EQUAL_CHAR('}', buf[n - 1]);
   TEST_ASSERT_NOT_NULL(strstr(buf, "\"ts\":2000"));
   TEST_ASSERT_NOT_NULL(strstr(buf, "\"uid\":5"));
+  TEST_ASSERT_NOT_NULL(strstr(buf, "\"node\":\"ab12\""));
 }
 
 static void test_table_json_small_buffer_stays_valid() {
   for (uint16_t u = 1; u <= NodeTable::MAX; u++) t.update(u, 1000, -80, 30);
-  size_t n = t.toJson(buf, 200, 2000); // too small for 32 nodes
+  size_t n = t.toJson(buf, 200, 2000, "ab12"); // too small for 32 nodes
   TEST_ASSERT_TRUE(n < 200);
   TEST_ASSERT_EQUAL_CHAR('{', buf[0]);
   TEST_ASSERT_EQUAL_CHAR('}', buf[n - 1]);

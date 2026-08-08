@@ -91,13 +91,24 @@ void Bresser::init() {
   Serial.println(F("OK"));
 }
 
+// CC1101 errata (SWRZ020): RXBYTES can return a stale value when read while
+// a byte is being received — read repeatedly until two reads agree.
+static uint8_t readRxBytes() {
+  uint8_t rb = ELECHOUSE_cc1101.SpiReadStatus(CC1101_RXBYTES), prev;
+  do {
+    prev = rb;
+    rb = ELECHOUSE_cc1101.SpiReadStatus(CC1101_RXBYTES);
+  } while (rb != prev);
+  return rb;
+}
+
 // Read exactly BRESSER_PKT_LEN bytes straight from the RX FIFO (fixed-length
 // mode). RXBYTES bit7 is the overflow flag, bits6:0 the byte count. We require a
 // full packet and no overflow, copy it into _rxBuf, then always flush + re-arm
 // RX. Returns true once _rxBuf holds a complete packet.
 static bool readFixedPkt() {
   bool got = false;
-  uint8_t rb = ELECHOUSE_cc1101.SpiReadStatus(CC1101_RXBYTES);
+  uint8_t rb = readRxBytes();
   if (!(rb & 0x80) && (rb & 0x7F) >= BRESSER_PKT_LEN) {
     ELECHOUSE_cc1101.SpiReadBurstReg(CC1101_RXFIFO, _rxBuf, BRESSER_PKT_LEN);
     _rxRssi = ELECHOUSE_cc1101.getRssi();
@@ -131,8 +142,7 @@ bool Bresser::pending() {
     }
   }
 #else
-  if (!_ready &&
-      (ELECHOUSE_cc1101.SpiReadStatus(CC1101_RXBYTES) & 0x7F) >= BRESSER_PKT_LEN) {
+  if (!_ready && (readRxBytes() & 0x7F) >= BRESSER_PKT_LEN) {
     if (readFixedPkt()) _ready = true;
   }
 #endif

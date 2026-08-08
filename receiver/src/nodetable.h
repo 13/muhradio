@@ -59,24 +59,27 @@ public:
   }
 
   // One node as a small JSON object (fits a 512-byte MQTT buffer easily).
-  static void entryJson(const NodeEntry& e, uint32_t nowS, char* buf, size_t cap) {
+  // rxNode identifies the receiver — parallel receivers each publish their
+  // own health record, so the field disambiguates retained messages.
+  static void entryJson(const NodeEntry& e, uint32_t nowS, const char* rxNode,
+                        char* buf, size_t cap) {
     snprintf(buf, cap,
       "{\"uid\":%u,\"last\":%lu,\"age\":%lu,\"count\":%lu,"
-      "\"rssi\":%d,\"vcc\":%u.%u,\"low\":%d}",
+      "\"rssi\":%d,\"vcc\":%u.%u,\"low\":%d,\"node\":\"%s\"}",
       e.uid, (unsigned long)e.lastSeen,
       (unsigned long)(nowS >= e.lastSeen ? nowS - e.lastSeen : 0),
       (unsigned long)e.count, e.rssi, e.vcc10 / 10, e.vcc10 % 10,
-      lowBat(e) ? 1 : 0);
+      lowBat(e) ? 1 : 0, rxNode);
   }
 
   // Full table as a JSON array (for GET /nodes).
-  size_t toJson(char* buf, size_t cap, uint32_t nowS) const {
+  size_t toJson(char* buf, size_t cap, uint32_t nowS, const char* rxNode) const {
     size_t n = snprintf(buf, cap, "{\"ts\":%lu,\"nodes\":[", (unsigned long)nowS);
     bool first = true;
     for (const NodeEntry& e : _e) {
       if (!e.count) continue;
-      char one[128];
-      entryJson(e, nowS, one, sizeof(one));
+      char one[160];
+      entryJson(e, nowS, rxNode, one, sizeof(one));
       size_t need = strlen(one) + (first ? 0 : 1);
       if (n + need + 3 > cap) break; // keep room for "]}\0"
       if (!first) buf[n++] = ',';

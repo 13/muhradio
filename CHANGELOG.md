@@ -3,6 +3,18 @@
 Components are tagged independently: `receiver/vX.Y.Z` and `transmitter/vX.Y.Z`.
 History before the versions below: see `git log`.
 
+## receiver/v1.6.0 — 2026-08-08
+
+- **Breaking:** node health topic moved from `{MQTT_TOPIC}/{uid}/health` to
+  `{MQTT_TOPIC_LWT}/{hostname}/nodes/{uid}` and gained a `node` field —
+  parallel receivers no longer overwrite each other's retained records
+- Settings page: Export/Import config buttons (backed by `/api/config/*`,
+  require `WEB_PASS`)
+- HTTP API reference table in the receiver README
+- CC1101 RXBYTES errata workaround (double-read until stable) in the Bresser
+  FIFO reader
+- Native tests run under ASan/UBSan
+
 ## receiver/v1.5.0 — 2026-08-08
 
 - Dashboard "Nodes" card: per-node last-seen, packet count, RSSI and battery

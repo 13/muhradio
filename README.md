@@ -69,7 +69,14 @@ cd transmitter && pio test -e native_test
 cd receiver    && pio test -e native_test
 ```
 
-CI runs them plus a firmware build matrix on every push.
+CI runs them plus a firmware build matrix on every push. The native tests run
+under ASan/UBSan.
+
+## Dependency updates
+
+All platform and library versions are pinned exactly for reproducible builds.
+To bump deliberately: `pio pkg outdated` in each project, update the pin in
+`platformio.ini`, build + test, commit.
 
 ## Quick start
 

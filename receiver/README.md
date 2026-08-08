@@ -142,14 +142,34 @@ LoRa and Bresser receivers publish directly to port 1883.
 ### Custom sensors
 
 ```
-{MQTT_TOPIC}/{uid}/json          ← packet JSON
-{MQTT_TOPIC}/{uid}/health        ← retained node health: last-seen, count, RSSI, VCC, low-bat
-{MQTT_TOPIC_LWT}/{hostname}/LWT  ← online / offline
+{MQTT_TOPIC}/{uid}/json                  ← packet JSON
+{MQTT_TOPIC_LWT}/{hostname}/LWT          ← online / offline
 {MQTT_TOPIC_LWT}/{hostname}/IP
 {MQTT_TOPIC_LWT}/{hostname}/VERSION
+{MQTT_TOPIC_LWT}/{hostname}/nodes/{uid}  ← retained node health: last-seen, count, RSSI, VCC, low-bat
 ```
 
-The same health data is served as one JSON table at `GET /nodes`.
+Health lives under the receiver's hostname (with a `node` field in the JSON)
+so parallel receivers don't overwrite each other's retained records. The same
+data is served as one JSON table at `GET /nodes`.
+
+## HTTP API
+
+Auth = HTTP basic auth with `WEB_USER`/`WEB_PASS`, active only when `WEB_PASS`
+is set. Export/import refuse entirely (403) without `WEB_PASS`.
+
+| Endpoint | Method | Auth | Purpose |
+|---|---|---|---|
+| `/json` | GET | no | full status JSON (same payload as the websocket) |
+| `/nodes` | GET | no | node health table |
+| `/ip`, `/ping` | GET | no | plain-text IP / liveness |
+| `/reboot` | GET/POST | yes | reboot (deferred until response is sent) |
+| `/update` | POST | yes | OTA upload: firmware.bin, littlefs.bin or ota_bundle.bin |
+| `/api/settings` | GET | yes | current config, secrets masked as `***` |
+| `/api/settings` | POST | yes | update config + reboot (`***` = keep, empty = clear) |
+| `/api/reset` | POST | yes | delete /config.json + reboot |
+| `/api/config/export` | GET | yes + WEB_PASS required | download /config.json (plaintext secrets) |
+| `/api/config/import` | POST | yes + WEB_PASS required | upload config.json + reboot |
 
 ### Bresser 7003600
 

@@ -120,7 +120,7 @@ void Web::begin(Status& s) {
         _status ? _serialize(*_status, _status->timestamp) : "{}"); });
   _server.on("/nodes", HTTP_GET, [](AsyncWebServerRequest* r) {
     char buf[2048];
-    g_nodeTable.toJson(buf, sizeof(buf), (uint32_t)Net::nowUtc());
+    g_nodeTable.toJson(buf, sizeof(buf), (uint32_t)Net::nowUtc(), Net::nodeId);
     r->send(200, "application/json", buf);
   });
   // GET kept for the update.html link; restart deferred to loop() so the
