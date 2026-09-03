@@ -131,6 +131,11 @@ jobs:
           cat release_notes.md
           ls -la dist
       - uses: softprops/action-gh-release@v2
+        env:
+          # Node's fetch ignores NODE_EXTRA_CA_CERTS for the asset upload
+          # against Gitea's self-signed-CA cert; disable verification only
+          # off github.com.
+          NODE_TLS_REJECT_UNAUTHORIZED: ${{ github.server_url != 'https://github.com' && '0' || '1' }}
         with:
           files: dist/*
           body_path: release_notes.md
