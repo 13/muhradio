@@ -65,6 +65,16 @@ pin on the Pro Mini, so interrupt sensors default there. Override with
 `-DSENSOR_PIN_RADAR=N` (any digital pin works for non-interrupt wake if you
 poll instead).
 
+**Press-feedback LED (optional, button nodes)** — blinks `LED_MS` ms
+(default 50) on each press:
+
+| Pro Mini | LED |
+|---|---|
+| D4 (`-DLED_PIN=N`) | anode, via 220–470 Ω resistor |
+| GND | cathode |
+
+The onboard LED (D13) can't be used because D13 is the radio's SPI SCK.
+
 ## Receiver
 
 CC1101 wiring is identical for custom-sensor and Bresser environments on the

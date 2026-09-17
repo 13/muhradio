@@ -3,6 +3,11 @@
 Components are tagged independently: `receiver/vX.Y.Z` and `transmitter/vX.Y.Z`.
 History before the versions below: see `git log`.
 
+## transmitter — unreleased
+
+- Button nodes: optional press-feedback LED (`-DLED_PIN=N`, blink length
+  `-DLED_MS`, default 50 ms); enabled on `cc1101_button_test` (D4)
+
 ## receiver/v1.8.1 — 2026-08-08
 
 - Config save: buffer sized for worst-case escaped fields (1280 B) and save
