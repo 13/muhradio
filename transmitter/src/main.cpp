@@ -14,6 +14,10 @@
 #ifdef SENSOR_TYPE_switch
 #include "sensors/switch.h"
 #endif
+#if defined(SENSOR_TYPE_button) + defined(SENSOR_TYPE_switch) + \
+    defined(SENSOR_TYPE_pir) + defined(SENSOR_TYPE_radar) > 1
+#error "One wake sensor (button/switch/pir/radar) per node: they share the PCINT flag"
+#endif
 #ifdef SENSOR_TYPE_pir
 #include "sensors/pir.h"
 #endif
@@ -41,6 +45,10 @@ static uint16_t msgCounter = 1;
 #endif
 
 void setup() {
+#ifdef USE_WDT
+  MCUSR = 0;         // clear WDRF, or the WDT stays on at its 15 ms reset timeout
+  Power::wdtArm();
+#endif
   // Timer0 stays on for millis()/delay(); SPI stays on for the radio.
   power_timer1_disable();
   power_timer2_disable();
@@ -88,7 +96,7 @@ void setup() {
   Switch::setup();
 #endif
 #ifdef SENSOR_TYPE_pir
-  PIR::setup(); // blocks until first event
+  PIR::setup();
 #endif
 #ifdef SENSOR_TYPE_radar
   Radar::setup();
@@ -108,14 +116,18 @@ void setup() {
 }
 
 void loop() {
-#ifdef SENSOR_TYPE_switch
-  // Debounce before anything else, and go straight back to sleep on a spurious
-  // wake or on chatter that settled where it already was. VCC is added
-  // unconditionally below, so without this the node would transmit anyway.
-  if (!Switch::pending()) {
-    Power::sleepSensor();
-    return;
-  }
+  // Wake sensors: debounce before anything else, and go straight back to sleep
+  // on a spurious wake, on chatter that settled where it already was, or on a
+  // button release / motion end. VCC is added unconditionally below, so
+  // without this the node would transmit anyway.
+#if defined(SENSOR_TYPE_switch)
+  if (!Switch::pending()) { Power::sleepSensor(); return; }
+#elif defined(SENSOR_TYPE_button)
+  if (!Button::pending()) { Power::sleepSensor(); return; }
+#elif defined(SENSOR_TYPE_pir)
+  if (!PIR::pending())    { Power::sleepSensor(); return; }
+#elif defined(SENSOR_TYPE_radar)
+  if (!Radar::pending())  { Power::sleepSensor(); return; }
 #endif
 
   // uid and pid go into the fixed header, not the bitmap

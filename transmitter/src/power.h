@@ -2,16 +2,36 @@
 #include <Arduino.h>
 #include <LowPower.h>
 #include "transport.h"
+#ifdef USE_WDT
+#include <avr/wdt.h>
+#endif
 
 #ifndef DS_D
 #define DS_D 0
 #endif
 
 namespace Power {
+  // Opt-in watchdog (-DUSE_WDT). Needs Optiboot: the stock Pro Mini
+  // ATmegaBOOT boot-loops after a watchdog reset. Armed while awake so a hung
+  // I2C/OneWire/SPI transaction resets the node instead of draining it; timed
+  // LowPower sleeps reuse the WDT as their wake timer, so sleepDeep() disarms
+  // it for the duration.
+  inline void wdtArm() {
+#ifdef USE_WDT
+    wdt_enable(WDTO_8S);
+#endif
+  }
+  inline void wdtDisarm() {
+#ifdef USE_WDT
+    wdt_disable();
+#endif
+  }
+
   // t=0: sleep forever (interrupt wake)
   // t>0: sleep t seconds
   inline void sleepDeep(uint16_t t = 0) {
     Transport::sleep();
+    wdtDisarm();
 #if DS_D > 0
     delay(DS_D);
 #endif
@@ -24,6 +44,7 @@ namespace Power {
       Serial.flush();
 #endif
       LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
+      wdtArm();
       return;
     }
 
@@ -43,6 +64,7 @@ namespace Power {
     if (r & 4) LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
     if (r & 2) LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);
     if (r & 1) LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
+    wdtArm();
   }
 
   inline void init() {

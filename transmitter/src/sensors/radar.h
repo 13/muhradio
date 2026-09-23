@@ -1,15 +1,14 @@
 #pragma once
 #include <Arduino.h>
 #include "../packet.h"
+#include "wake.h"
+
+#ifndef RADAR_SETTLE_MS
+#define RADAR_SETTLE_MS 0
+#endif
 
 namespace Radar {
-  static volatile bool _detected = false;
-  static volatile bool _state    = false;
-
-  static void _isr() {
-    _state    = digitalRead(SENSOR_PIN_RADAR);
-    _detected = true;
-  }
+  static WakeEdge _edge;
 
   inline void setup() {
     pinMode(SENSOR_PIN_RADAR, INPUT);
@@ -17,16 +16,19 @@ namespace Radar {
     Serial.print(F("Radar: "));
     Serial.println(digitalRead(SENSOR_PIN_RADAR) == HIGH ? F("HIGH") : F("LOW"));
 #endif
-    attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_RADAR), _isr, RISING);
+    Wake::attach(SENSOR_PIN_RADAR);
+  }
+
+  // HIGH = presence. Only presence start transmits; the falling edge is ignored.
+  inline bool pending() {
+    return Wake::pending(_edge, SENSOR_PIN_RADAR, HIGH, RADAR_SETTLE_MS);
   }
 
   inline void read(Packet& pkt) {
-    if (!_detected) return;
-    bool s = _state;
-    _detected = false;
-    pkt.addU8(Field::RADAR, s ? 1 : 0);
+    if (!_edge.active) return; // boot announce without presence: VCC only
+    pkt.addU8(Field::RADAR, 1);
 #ifdef VERBOSE
-    Serial.print(F("Radar: ")); Serial.println(s ? 1 : 0);
+    Serial.println(F("Radar: 1"));
 #endif
   }
 }

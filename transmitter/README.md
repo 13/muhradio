@@ -56,10 +56,11 @@ by both transmitter and receiver; a native round-trip test
 All pin tables live in [docs/PINOUTS.md](../docs/PINOUTS.md) — Pro Mini →
 LoRa/CC1101 radio wiring plus I2C, DS18B20 and interrupt-sensor connections.
 
-Interrupt-driven sensors (button, PIR, radar) use **D3** by default
-(D2 is reserved for the radio). Configure with `-DSENSOR_PIN_xxx=N`.
-A **switch** wakes on a pin-change interrupt instead, so it works on any
-digital pin — D3 is only its default.
+Wake sensors (button, PIR, radar, switch) use **D3** by default (D2 is
+reserved for the radio). They wake on a pin-change interrupt, so any digital
+pin works — configure with `-DSENSOR_PIN_xxx=N`. Button, PIR and radar report
+only their active edge (1); a switch reports both positions. Only one wake
+sensor per node.
 I2C sensors share one bus — see [I2C address notes](#i2c-address-notes) if
 combining BMP280 and BME680.
 
@@ -117,6 +118,9 @@ random uid generated once at boot and stored in EEPROM.
 | `-DSENSOR_TYPE_switch="SWITCH"` | Enable switch — reed or rocker (pin-change wake) |
 | `-DSWITCH_DEBOUNCE_MS=N` | Switch contact settle time (default 30; reed can use 5) |
 | `-DSWITCH_INVERT` | Flip switch encoding (normally-closed reed, reversed rocker) |
+| `-DBUTTON_DEBOUNCE_MS=N` | Button settle time after a wake (default 20) |
+| `-DPIR_SETTLE_MS=N` / `-DRADAR_SETTLE_MS=N` | Settle time before sampling (default 0) |
+| `-DUSE_WDT` | 8 s watchdog while awake. **Optiboot only** — the stock Pro Mini bootloader boot-loops after a watchdog reset |
 | `-DSENSOR_PIN_xxx=N` | Override pin for sensor xxx |
 | `-DCUSTOM_UID="hex"` | Fixed node UID (hex string) |
 | `-DDS_L=36` | Timed sleep in seconds (≥8) |

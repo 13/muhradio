@@ -3,6 +3,44 @@
 Components are tagged independently: `receiver/vX.Y.Z` and `transmitter/vX.Y.Z`.
 History before the versions below: see `git log`.
 
+## Unreleased
+
+### transmitter
+
+- Button, PIR and radar nodes wake on a pin-change interrupt, the same fix
+  v1.9.0 made for switches: `attachInterrupt()` edges on INT0/INT1 can't wake
+  the ATmega328P from power-down. Only the active edge transmits (press,
+  motion/presence start → 1); release and motion end go straight back to
+  sleep. Debounce via `-DBUTTON_DEBOUNCE_MS` (default 20). Any digital pin now
+  works. PIR nodes no longer block in setup and send a VCC announce at boot,
+  like button and radar nodes.
+- `cc1101_ds18b20_si7021` uses UID **14** as the registry says; it collided
+  with `cc1101_si7021_bmp280` on 23. A reflashed node publishes to `…/14/json`.
+- A node whose radio failed to initialise now puts it to sleep before sleeping
+  forever, instead of leaving it in idle and draining the cell.
+- Opt-in watchdog `-DUSE_WDT` (8 s while awake). Optiboot only.
+
+### receiver
+
+- CC1101: received frames longer than the 80-byte buffer are dropped; the
+  library's `ReceiveData()` trusted the FIFO length byte and could overrun it.
+- OTA: an upload that ends early (mid-firmware, or a bundle whose filesystem
+  is short) now reports failure instead of `"success":true`.
+- `/api/settings` GET builds its JSON with `JsonBuilder`, so worst-case
+  escaped values can't overflow the buffer.
+- No WiFi at boot (without `REQUIRES_INTERNET`): mDNS, espota, MQTT and NTP now
+  start once WiFi connects instead of never being initialised.
+- NTP retries every minute until the first sync (was hourly), and `boottime` is
+  set only from a real sync.
+- WebSocket: client messages only request a refresh, which the main loop sends
+  at most every 250 ms — no more cross-task access to the status buffer, and a
+  message flood can't trigger a broadcast storm.
+- Settings POST ignores out-of-range `mqtt_port`, `tz_offset`, `dst_mode`
+  instead of wrapping them; config load applies the same ranges.
+- Config import validates the file (SSID and broker set, numbers in range)
+  before it replaces the live config, and doesn't buffer the body for
+  unauthenticated requests.
+
 ## transmitter/v1.9.0 — 2026-09-23
 
 - Switch nodes (reed or rocker) now wake reliably on **both** edges: the wake

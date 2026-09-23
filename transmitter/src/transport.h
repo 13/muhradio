@@ -119,8 +119,10 @@ namespace Transport {
     return _ready;
   }
 
+  // Also called after a failed init(): a half-alive radio left in IDLE/standby
+  // would drain the battery while the node sleeps forever. Both init paths
+  // have set up SPI by the time they can fail, so the strobe is safe to try.
   inline void sleep() {
-    if (!_ready) return;
 #ifdef USE_CC1101
     ELECHOUSE_cc1101.goSleep(); // SIDLE + SPWD: ~1.7 mA idle -> ~0.2 uA
     _asleep = true;
