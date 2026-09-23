@@ -46,3 +46,25 @@ static bool jsonGetLong(const char* j, const char* key, long& out) {
   out = atol(p + strlen(pat));
   return true;
 }
+
+// Value ranges shared by the settings POST, config import and load().
+static inline bool cfgPortOk(long v) { return v >= 1 && v <= 65535; }
+static inline bool cfgTzOk(long v)   { return v >= -720 && v <= 840; } // UTC-12..+14 in minutes
+static inline bool cfgDstOk(long v)  { return v >= 0 && v <= 2; }
+
+// Sanity check for an uploaded config.json before it replaces the live one:
+// a {...} object that keeps the device reachable (SSID + broker set) and whose
+// numeric fields, when present, are in range.
+static inline bool cfgImportOk(const char* j) {
+  size_t n = strlen(j);
+  while (n && (j[n - 1] == '\n' || j[n - 1] == '\r' || j[n - 1] == ' ')) n--; // hand-edited file
+  if (n < 2 || j[0] != '{' || j[n - 1] != '}') return false;
+  char s[80];
+  if (!jsonGetStr(j, "wifi_ssid", s, sizeof(s)) || !s[0])   return false;
+  if (!jsonGetStr(j, "mqtt_server", s, sizeof(s)) || !s[0]) return false;
+  long v;
+  if (jsonGetLong(j, "mqtt_port", v) && !cfgPortOk(v)) return false;
+  if (jsonGetLong(j, "tz_offset", v) && !cfgTzOk(v))   return false;
+  if (jsonGetLong(j, "dst_mode",  v) && !cfgDstOk(v))  return false;
+  return true;
+}

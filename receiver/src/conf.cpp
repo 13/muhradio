@@ -13,14 +13,14 @@ namespace Cfg { Conf g; }
 
 static bool _getU16(const char* j, const char* key, uint16_t& out) {
   long v;
-  if (!jsonGetLong(j, key, v)) return false;
+  if (!jsonGetLong(j, key, v) || !cfgPortOk(v)) return false;
   out = (uint16_t)v;
   return true;
 }
 
 static bool _getI16(const char* j, const char* key, int16_t& out) {
   long v;
-  if (!jsonGetLong(j, key, v)) return false;
+  if (!jsonGetLong(j, key, v) || !cfgTzOk(v)) return false;
   out = (int16_t)v;
   return true;
 }

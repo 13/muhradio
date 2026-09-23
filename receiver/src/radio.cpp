@@ -91,6 +91,38 @@ static RxPacket _cc1101Pkt;
 static volatile bool _gdo0Flag = false;
 static void ISR_ATTR _cc1101ISR() { _gdo0Flag = true; }
 #endif
+
+static void _cc1101Rearm() {
+  ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
+  ELECHOUSE_cc1101.SpiStrobe(CC1101_SFRX);
+  ELECHOUSE_cc1101.SetRx();
+}
+
+// Replaces the library's ReceiveData(), which burst-reads as many bytes as the
+// FIFO length byte claims — a corrupt or foreign frame could overrun buf[80].
+static void _cc1101Drain() {
+  if (!ELECHOUSE_cc1101.CheckCRC()) {
+    _cc1101Rearm(); // CheckCRC's own SFRX is ignored outside IDLE/overflow
+    Serial.println(F("> [CC1101] CRC fail"));
+    return;
+  }
+  uint8_t len = 0;
+  if (ELECHOUSE_cc1101.SpiReadStatus(CC1101_RXBYTES) & 0x7F) {
+    len = ELECHOUSE_cc1101.SpiReadReg(CC1101_RXFIFO);
+    if (len <= sizeof(_cc1101Pkt.buf))
+      ELECHOUSE_cc1101.SpiReadBurstReg(CC1101_RXFIFO, _cc1101Pkt.buf, len);
+    else {
+      Serial.printf("> [CC1101] oversized frame len=%u — dropped\n", len);
+      len = 0;
+    }
+  }
+  _cc1101Rearm();
+  if (len == 0) return;
+  _cc1101Pkt.len  = len;
+  _cc1101Pkt.rssi = ELECHOUSE_cc1101.getRssi();
+  _cc1101Pkt.snr  = 0;
+  _cc1101Ready    = true;
+}
 #endif
 
 #include "jsonbuilder.h"
@@ -201,18 +233,7 @@ bool Radio::pending() {
   // was blocked by WiFi/MQTT when the event occurred.
   if (!_cc1101Ready && _gdo0Flag) {
     _gdo0Flag = false;
-    if (ELECHOUSE_cc1101.CheckCRC()) {
-      uint8_t len     = ELECHOUSE_cc1101.ReceiveData(_cc1101Pkt.buf);
-      _cc1101Pkt.len  = len;
-      _cc1101Pkt.rssi = ELECHOUSE_cc1101.getRssi();
-      _cc1101Pkt.snr  = 0;
-      _cc1101Ready    = true;
-    } else {
-      ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
-      ELECHOUSE_cc1101.SpiStrobe(CC1101_SFRX);
-      ELECHOUSE_cc1101.SetRx();
-      Serial.println(F("> [CC1101] CRC fail"));
-    }
+    _cc1101Drain();
   }
   // Watchdog: belt-and-suspenders in case an ISR was somehow lost
   {
@@ -222,28 +243,14 @@ bool Radio::pending() {
       _watchAt = ms;
       uint8_t st = ELECHOUSE_cc1101.SpiReadStatus(CC1101_MARCSTATE) & 0x1F;
       if (st == 17) { // RXFIFO_OVERFLOW
-        ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
-        ELECHOUSE_cc1101.SpiStrobe(CC1101_SFRX);
-        ELECHOUSE_cc1101.SetRx();
+        _cc1101Rearm();
         Serial.println(F("> [CC1101] overflow watchdog — recovered"));
       }
     }
   }
 #else
-  if (!_cc1101Ready && ELECHOUSE_cc1101.CheckRxFifo(0)) {
-    if (ELECHOUSE_cc1101.CheckCRC()) {
-      uint8_t len     = ELECHOUSE_cc1101.ReceiveData(_cc1101Pkt.buf);
-      _cc1101Pkt.len  = len;
-      _cc1101Pkt.rssi = ELECHOUSE_cc1101.getRssi();
-      _cc1101Pkt.snr  = 0;
-      _cc1101Ready    = true;
-    } else {
-      ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
-      ELECHOUSE_cc1101.SpiStrobe(CC1101_SFRX);
-      ELECHOUSE_cc1101.SetRx();
-      Serial.println(F("> [CC1101] CRC fail"));
-    }
-  }
+  if (!_cc1101Ready && ELECHOUSE_cc1101.CheckRxFifo(0))
+    _cc1101Drain();
 #endif
   ready = ready || _cc1101Ready;
 #endif

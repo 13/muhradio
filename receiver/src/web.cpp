@@ -31,11 +31,17 @@ static AsyncWebSocket _ws("/ws");
 static uint8_t        _clients      = 0;
 static Status*        _status       = nullptr;
 static bool           _pendingReboot = false;
+// Set from the AsyncTCP task, serviced in loop(): Status and _wsBuf are only
+// ever touched from the main loop, and a flood of client messages collapses
+// into one broadcast per WS_REFRESH_MS.
+static volatile bool  _wsRefresh    = false;
+static constexpr unsigned long WS_REFRESH_MS = 250;
 
 // 2 KB static buffer — serialised once per notify call, never on heap.
 static char _wsBuf[2048];
 
-#include "jsonbuilder.h" // jsonAppendEscaped
+#include "jsonbuilder.h" // JsonBuilder
+#include "confjson.h"    // cfg*Ok range/import checks
 
 // ── OTA bundle state ───────────────────────────────────────────────────────────
 // Bundle format (produced by `pio run -t otabundle`):
@@ -61,7 +67,8 @@ static bool _auth(AsyncWebServerRequest* r) {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-static const char* _serialize(Status& s, time_t ts) {
+static const char* _serialize(Status& s, time_t ts, char* out = _wsBuf,
+                              size_t cap = sizeof(_wsBuf)) {
   s.rssi      = WiFi.RSSI();
   s.memfree   = ESP.getFreeHeap();
   s.timestamp = ts;
@@ -72,8 +79,8 @@ static const char* _serialize(Status& s, time_t ts) {
 #elif defined(ESP8266)
   s.memfrag = ESP.getHeapFragmentation();
 #endif
-  s.toJson(_wsBuf, sizeof(_wsBuf));
-  return _wsBuf;
+  s.toJson(out, cap);
+  return out;
 }
 
 static void _onWsEvent(AsyncWebSocket*, AsyncWebSocketClient* client,
@@ -83,15 +90,15 @@ static void _onWsEvent(AsyncWebSocket*, AsyncWebSocketClient* client,
       Serial.printf("> [WS] #%u connected from %s\n",
         client->id(), client->remoteIP().toString().c_str());
       _clients++;
-      if (_status) _ws.textAll(_serialize(*_status, _status->timestamp));
+      _wsRefresh = true;
       break;
     case WS_EVT_DISCONNECT:
       Serial.printf("> [WS] #%u disconnected\n", client->id());
       if (_clients) _clients--;
       break;
     case WS_EVT_DATA:
-      // Any message from client triggers a status refresh
-      if (_status) _ws.textAll(_serialize(*_status, _status->timestamp));
+      // Any message from client requests a status refresh
+      _wsRefresh = true;
       break;
     case WS_EVT_PONG:
     case WS_EVT_ERROR:
@@ -115,9 +122,11 @@ void Web::begin(Status& s) {
     { r->send(200, "text/plain", _status ? _status->ip : ""); });
   _server.on("/ping", HTTP_GET, [](AsyncWebServerRequest* r)
     { r->send(200, "text/plain", "pong"); });
-  _server.on("/json", HTTP_GET, [](AsyncWebServerRequest* r)
-    { r->send(200, "application/json",
-        _status ? _serialize(*_status, _status->timestamp) : "{}"); });
+  _server.on("/json", HTTP_GET, [](AsyncWebServerRequest* r) {
+    static char buf[sizeof(_wsBuf)]; // own buffer: must not clobber _wsBuf mid-broadcast
+    r->send(200, "application/json",
+      _status ? _serialize(*_status, _status->timestamp, buf, sizeof(buf)) : "{}");
+  });
   _server.on("/nodes", HTTP_GET, [](AsyncWebServerRequest* r) {
     // static: the async context stack on ESP8266 is too small for 2 KB locals
     static char buf[2048];
@@ -146,7 +155,7 @@ void Web::begin(Status& s) {
     [](AsyncWebServerRequest* r) {
       if (!_auth(r)) return;
       AsyncWebServerResponse* resp;
-      if (_ota.phase != OtaState::ABORT && !Update.hasError())
+      if (_ota.phase == OtaState::DONE)
         resp = r->beginResponse(200, "application/json",
           "{\"success\":true,\"message\":\"Updated!\"}");
       else
@@ -154,6 +163,7 @@ void Web::begin(Status& s) {
           "{\"success\":false,\"message\":\"Update failed\"}");
       resp->addHeader("Connection", "close");
       r->send(resp);
+      _ota.phase = OtaState::ABORT; // a later POST without a file must not reuse DONE
     },
     [](AsyncWebServerRequest* r, String filename,
        size_t index, uint8_t* data, size_t len, bool final) {
@@ -288,13 +298,27 @@ void Web::begin(Status& s) {
       }
 
       if (final) {
-        if (_ota.phase == OtaState::FS || _ota.phase == OtaState::SINGLE) {
-          if (!Update.end(true)) {
-            Update.printError(Serial);
+        switch (_ota.phase) {
+          case OtaState::SINGLE: // real image size unknown — accept what came
+          case OtaState::FS:     // bundle size known — a short image fails here
+            if (Update.end(_ota.phase == OtaState::SINGLE)) {
+              Serial.println(F("> [OTA] OK"));
+              _ota.phase = OtaState::DONE;
+            } else {
+              Update.printError(Serial);
+              _ota.phase = OtaState::ABORT;
+            }
+            break;
+          case OtaState::FW:     // upload ended mid-firmware: release the updater
+            Update.end(false);
+            // fall through
+          case OtaState::DETECT: // shorter than the 12-byte header
+            Serial.println(F("> [OTA] upload truncated — abort"));
             _ota.phase = OtaState::ABORT;
-          } else {
-            Serial.println(F("> [OTA] OK"));
-          }
+            break;
+          case OtaState::DONE:
+          case OtaState::ABORT:
+            break;
         }
       }
     }
@@ -304,33 +328,25 @@ void Web::begin(Status& s) {
   _server.on("/api/settings", HTTP_GET, [](AsyncWebServerRequest* r) {
     if (!_auth(r)) return;
     static char buf[900]; // async-context stack is tight on ESP8266
-    size_t n = 0;
-    auto ap = [&](const char* s) { n = jsonAppendEscaped(buf, n, sizeof(buf), s); };
-    auto as = [&](const char* key, const char* val) {
-      n += snprintf(buf + n, sizeof(buf) - n, "\"%s\":\"", key);
-      ap(val);
-      n += snprintf(buf + n, sizeof(buf) - n, "\",");
-    };
+    // JsonBuilder clamps and drops a pair whole, so even worst-case escaped
+    // values can't overrun buf or yield invalid JSON.
+    JsonBuilder jb(buf, sizeof(buf));
     // Secrets never leave the device: "***" = set, "" = unset. The POST
     // handler ignores the literal "***" so the settings form round-trips.
-    buf[n++] = '{';
-    as("wifi_ssid",   Cfg::g.wifi_ssid);
-    as("wifi_pass",   Cfg::g.wifi_pass[0] ? "***" : "");
-    as("mqtt_server", Cfg::g.mqtt_server);
-    n += snprintf(buf + n, sizeof(buf) - n, "\"mqtt_port\":%u,", Cfg::g.mqtt_port);
-    as("mqtt_user",   Cfg::g.mqtt_user);
-    as("mqtt_pass",   Cfg::g.mqtt_pass[0] ? "***" : "");
-    as("desc",        Cfg::g.desc);
-    n += snprintf(buf + n, sizeof(buf) - n,
-                  "\"tz_offset\":%d,\"dst_mode\":%u,\"node_stats\":%u,",
-                  (int)Cfg::g.tz_offset, (unsigned)Cfg::g.dst_mode,
-                  (unsigned)Cfg::g.node_stats);
-    as("ntp1", Cfg::g.ntp1);
-    as("ntp2", Cfg::g.ntp2);
-    // last key: no trailing comma
-    n += snprintf(buf + n, sizeof(buf) - n, "\"ntp3\":\"");
-    ap(Cfg::g.ntp3);
-    n += snprintf(buf + n, sizeof(buf) - n, "\"}");
+    jb.kvs("wifi_ssid",   Cfg::g.wifi_ssid);
+    jb.kvs("wifi_pass",   Cfg::g.wifi_pass[0] ? "***" : "");
+    jb.kvs("mqtt_server", Cfg::g.mqtt_server);
+    jb.kv ("mqtt_port",   (long)Cfg::g.mqtt_port);
+    jb.kvs("mqtt_user",   Cfg::g.mqtt_user);
+    jb.kvs("mqtt_pass",   Cfg::g.mqtt_pass[0] ? "***" : "");
+    jb.kvs("desc",        Cfg::g.desc);
+    jb.kv ("tz_offset",   (long)Cfg::g.tz_offset);
+    jb.kv ("dst_mode",    (long)Cfg::g.dst_mode);
+    jb.kv ("node_stats",  (long)Cfg::g.node_stats);
+    jb.kvs("ntp1",        Cfg::g.ntp1);
+    jb.kvs("ntp2",        Cfg::g.ntp2);
+    jb.kvs("ntp3",        Cfg::g.ntp3);
+    jb.finish();
     r->send(200, "application/json", buf);
   });
 
@@ -373,10 +389,12 @@ void Web::begin(Status& s) {
       out = v.toInt();
       return true;
     };
+    // Out-of-range values are ignored (field keeps its current value) rather
+    // than wrapped by the narrowing cast.
     long v;
-    if (getInt("mqtt_port",  v)) Cfg::g.mqtt_port  = (uint16_t)v;
-    if (getInt("tz_offset",  v)) Cfg::g.tz_offset  = (int16_t)v;
-    if (getInt("dst_mode",   v)) Cfg::g.dst_mode   = (uint8_t)v;
+    if (getInt("mqtt_port",  v) && cfgPortOk(v)) Cfg::g.mqtt_port = (uint16_t)v;
+    if (getInt("tz_offset",  v) && cfgTzOk(v))   Cfg::g.tz_offset = (int16_t)v;
+    if (getInt("dst_mode",   v) && cfgDstOk(v))  Cfg::g.dst_mode  = (uint8_t)v;
     if (getInt("node_stats", v)) Cfg::g.node_stats = v ? 1 : 0;
     bool ok = Cfg::save();
     r->send(200, "application/json",
@@ -419,7 +437,7 @@ void Web::begin(Status& s) {
         return;
       }
       if (!_auth(r)) return;
-      bool ok = r->_tempObject != nullptr;
+      bool ok = r->_tempObject && cfgImportOk((const char*)r->_tempObject);
       if (ok) {
         File f = LittleFS.open("/config.json", "w");
         ok = f && f.print((const char*)r->_tempObject) > 0;
@@ -427,7 +445,7 @@ void Web::begin(Status& s) {
       }
       r->send(ok ? 200 : 400, "application/json",
         ok ? "{\"success\":true,\"message\":\"Config imported — rebooting\"}"
-           : "{\"success\":false,\"message\":\"invalid or missing body\"}");
+           : "{\"success\":false,\"message\":\"invalid config: needs wifi_ssid, mqtt_server and in-range numbers\"}");
       if (ok) _pendingReboot = true;
     },
     nullptr,
@@ -435,6 +453,9 @@ void Web::begin(Status& s) {
       // Accumulate the raw body; validated and written in the request handler.
       if (total == 0 || total > 2048) return;
       if (index == 0) {
+        // Don't allocate for unauthenticated callers; the request handler
+        // still answers them with 403/401.
+        if (!WEB_PASS[0] || !r->authenticate(WEB_USER, WEB_PASS)) return;
         r->_tempObject = calloc(1, total + 1);
         // Reject anything that doesn't even start like a JSON object
         if (r->_tempObject && (len == 0 || data[0] != '{')) {
@@ -460,6 +481,12 @@ void Web::begin(Status& s) {
 
 void Web::loop() {
   _ws.cleanupClients();
+  static unsigned long lastRefresh = 0;
+  if (_wsRefresh && _status && millis() - lastRefresh >= WS_REFRESH_MS) {
+    _wsRefresh  = false;
+    lastRefresh = millis();
+    _ws.textAll(_serialize(*_status, _status->timestamp));
+  }
 #ifdef ESP8266
   ota8266Handle();
 #endif

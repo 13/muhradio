@@ -24,6 +24,8 @@ static NTPClient    _ntp(_ntpUDP, "", 0);
 static unsigned long _reconnectAt = 0;
 static unsigned long _markAt      = 0;
 static uint32_t      _uptime      = 0; // minutes
+static bool          _servicesUp  = false; // mDNS/OTA/MQTT/NTP started
+static bool          _ntpSynced   = false; // at least one NTP sync succeeded
 
 // EU DST rule: active from last Sunday of March 01:00 UTC
 //              to last Sunday of October 01:00 UTC.
@@ -59,7 +61,7 @@ static bool _ntpUpdate() {
   for (const char* srv : servers) {
     if (!srv || !srv[0]) continue;
     _ntp.setPoolServerName(srv);
-    if (_ntp.forceUpdate()) return true;
+    if (_ntp.forceUpdate()) return _ntpSynced = true;
   }
   return false;
 }
@@ -152,32 +154,9 @@ static void _updateStatus(Status& s) {
 #endif
 }
 
-// ── Public API ─────────────────────────────────────────────────────────────────
-
-void Net::begin(Status& s) {
-  // Derive hostname and nodeId from MAC (works before WiFi.begin())
-  String mac = WiFi.macAddress();
-  mac = mac.substring(12);
-  mac.replace(":", "");
-  strlcpy(Net::nodeId,   mac.c_str(), sizeof(Net::nodeId));
-#ifdef ESP8266
-  snprintf(Net::hostname, sizeof(Net::hostname), "esp8266-%s", Net::nodeId);
-#else
-  snprintf(Net::hostname, sizeof(Net::hostname), "esp32-%s",   Net::nodeId);
-#endif
-
-  Serial.print(F("> NodeID: ")); Serial.println(Net::nodeId);
-
-  _connectWiFi();
-
-  if (WiFi.status() != WL_CONNECTED) {
-#ifdef REQUIRES_INTERNET
-    Serial.println(F("> [Net] No WiFi — rebooting"));
-    ESP.restart();
-#endif
-    return;
-  }
-
+// mDNS, espota, MQTT and NTP need a network. Started from begin() when WiFi is
+// up at boot, otherwise from loop() once it first connects.
+static void _startServices() {
   if (!MDNS.begin(Net::hostname)) {
     Serial.println(F("> [mDNS] ERR"));
   } else {
@@ -204,26 +183,61 @@ void Net::begin(Status& s) {
   _ntp.begin();
   _ntpUpdate();
 
-  _updateStatus(s);
-  s.boottime = _ntp.getEpochTime(); // raw UTC — JS uptime = Date.now()/1000 - boottime
+  _servicesUp = true;
+}
+
+// ── Public API ─────────────────────────────────────────────────────────────────
+
+void Net::begin(Status& s) {
+  // Derive hostname and nodeId from MAC (works before WiFi.begin())
+  String mac = WiFi.macAddress();
+  mac = mac.substring(12);
+  mac.replace(":", "");
+  strlcpy(Net::nodeId,   mac.c_str(), sizeof(Net::nodeId));
+#ifdef ESP8266
+  snprintf(Net::hostname, sizeof(Net::hostname), "esp8266-%s", Net::nodeId);
+#else
+  snprintf(Net::hostname, sizeof(Net::hostname), "esp32-%s",   Net::nodeId);
+#endif
+
+  Serial.print(F("> NodeID: ")); Serial.println(Net::nodeId);
+
+  _connectWiFi();
+
   _markAt = millis();
+  if (WiFi.status() != WL_CONNECTED) {
+#ifdef REQUIRES_INTERNET
+    Serial.println(F("> [Net] No WiFi — rebooting"));
+    ESP.restart();
+#endif
+    return; // loop() starts the services once WiFi connects
+  }
+
+  _startServices();
+  _updateStatus(s);
+  // raw UTC — JS uptime = Date.now()/1000 - boottime; 0 until NTP syncs,
+  // then loop() back-dates it from _uptime
+  if (_ntpSynced) s.boottime = _ntp.getEpochTime();
 }
 
 bool Net::loop(Status& s) {
-  ArduinoOTA.handle();
+  if (!_servicesUp && WiFi.status() == WL_CONNECTED) _startServices();
+  if (_servicesUp) {
+    ArduinoOTA.handle();
 #ifdef ESP8266
-  MDNS.update();
+    MDNS.update();
 #endif
-  // MQTT keepalive
-  if (WiFi.status() == WL_CONNECTED) {
-    if (!_mqtt.connected()) {
-      unsigned long now = millis();
-      if (now - _reconnectAt >= 5000) {
-        _reconnectAt = now;
-        _connectMqtt();
+    // MQTT keepalive
+    if (WiFi.status() == WL_CONNECTED) {
+      if (!_mqtt.connected()) {
+        unsigned long now = millis();
+        if (now - _reconnectAt >= 5000) {
+          _reconnectAt = now;
+          _connectMqtt();
+        }
+      } else {
+        _mqtt.loop();
       }
-    } else {
-      _mqtt.loop();
     }
   }
 
@@ -261,17 +275,17 @@ bool Net::loop(Status& s) {
     return false;
   }
 
-  // MQTT reconnects are handled at the top of loop(); NTP hourly is plenty
-  if (_uptime % 60 == 0) _ntpUpdate();
+  // MQTT reconnects are handled at the top of loop(). NTP: every minute
+  // until the first sync (timestamps are ~1970 before that), then hourly.
+  if (!_ntpSynced || _uptime % 60 == 0) _ntpUpdate();
   _updateStatus(s);
-  if (s.boottime == 0) {
-    time_t t = _ntp.getEpochTime();
-    if (t > 1577836800) s.boottime = t - (time_t)(_uptime * 60);
-  }
+  if (s.boottime == 0 && _ntpSynced)
+    s.boottime = _ntp.getEpochTime() - (time_t)(_uptime * 60);
   return true; // signal main to push WS status
 }
 
 bool Net::publish(const char* topic, const char* payload, bool retained) {
+  if (!_servicesUp) return false;
   if (!_mqtt.connected()) {
     // Broker down: retry at most every 5 s — a blocking TCP connect per
     // received packet would stall the loop and overflow the radio RX FIFO.

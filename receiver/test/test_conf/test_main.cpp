@@ -53,6 +53,44 @@ static void test_output_bounded() {
   TEST_ASSERT_EQUAL_STRING("abc", tiny);
 }
 
+static void test_numeric_ranges() {
+  TEST_ASSERT_TRUE (cfgPortOk(1883));
+  TEST_ASSERT_FALSE(cfgPortOk(0));
+  TEST_ASSERT_FALSE(cfgPortOk(70000));
+  TEST_ASSERT_TRUE (cfgTzOk(-720));
+  TEST_ASSERT_TRUE (cfgTzOk(840));
+  TEST_ASSERT_FALSE(cfgTzOk(900));
+  TEST_ASSERT_TRUE (cfgDstOk(2));
+  TEST_ASSERT_FALSE(cfgDstOk(3));
+  TEST_ASSERT_FALSE(cfgDstOk(-1));
+}
+
+static void test_import_valid() {
+  TEST_ASSERT_TRUE(cfgImportOk(
+    "{\"cfg_ver\":1,\"wifi_ssid\":\"net\",\"mqtt_server\":\"broker\","
+    "\"mqtt_port\":1883,\"tz_offset\":60,\"dst_mode\":2}"));
+  TEST_ASSERT_TRUE(cfgImportOk("{\"wifi_ssid\":\"n\",\"mqtt_server\":\"b\"}\n"));
+}
+
+static void test_import_rejects_unreachable() {
+  // No SSID or broker: device would be reachable only over USB again
+  TEST_ASSERT_FALSE(cfgImportOk("{\"wifi_ssid\":\"\",\"mqtt_server\":\"b\"}"));
+  TEST_ASSERT_FALSE(cfgImportOk("{\"mqtt_server\":\"b\"}"));
+  TEST_ASSERT_FALSE(cfgImportOk("{\"wifi_ssid\":\"net\",\"mqtt_server\":\"\"}"));
+}
+
+static void test_import_rejects_bad_numbers() {
+  TEST_ASSERT_FALSE(cfgImportOk(
+    "{\"wifi_ssid\":\"n\",\"mqtt_server\":\"b\",\"mqtt_port\":0}"));
+  TEST_ASSERT_FALSE(cfgImportOk(
+    "{\"wifi_ssid\":\"n\",\"mqtt_server\":\"b\",\"dst_mode\":7}"));
+}
+
+static void test_import_rejects_non_object() {
+  TEST_ASSERT_FALSE(cfgImportOk("wifi_ssid=net"));
+  TEST_ASSERT_FALSE(cfgImportOk("{\"wifi_ssid\":\"n\",\"mqtt_server\":\"b\""));
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_roundtrip_plain);
@@ -63,5 +101,10 @@ int main() {
   RUN_TEST(test_missing_key);
   RUN_TEST(test_multiple_keys);
   RUN_TEST(test_output_bounded);
+  RUN_TEST(test_numeric_ranges);
+  RUN_TEST(test_import_valid);
+  RUN_TEST(test_import_rejects_unreachable);
+  RUN_TEST(test_import_rejects_bad_numbers);
+  RUN_TEST(test_import_rejects_non_object);
   return UNITY_END();
 }
