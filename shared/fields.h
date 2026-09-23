@@ -39,7 +39,7 @@ namespace Fields {
     true,true,true,true,false,
     true,true,false,false,false
   };
-  static const char* const NAMES[COUNT] = {
+  static constexpr const char* const NAMES[COUNT] = {
     "COUNTER","BUTTON","SWITCH","PIR","RADAR",
     "T_SI","H_SI","T_DS","T_BMP","P_BMP",
     "T_BME","H_BME","P_BME","G_BME","VCC"
@@ -57,4 +57,17 @@ namespace Fields {
     1250,1000,1250,850,11000,
     850,1000,11000,65535,255
   };
+
+  // Compile-time guards: a missing initializer silently zero-fills, and a zero
+  // size would desync the receiver's sequential decode walk.
+  static_assert(COUNT == (uint8_t)Field::VCC + 1, "COUNT must match the Field enum (VCC is the last bit)");
+  static_assert(COUNT <= 15, "bitmap bit 15 is the MQTT-retained flag");
+  constexpr bool _rowOk(uint8_t i) {
+    return SIZES[i] >= 1 && SIZES[i] <= 4 && SCALES[i] >= 1 &&
+           NAMES[i] != nullptr && MIN_RAW[i] <= MAX_RAW[i];
+  }
+  constexpr bool _tablesOk(uint8_t i = 0) {
+    return i >= COUNT || (_rowOk(i) && _tablesOk(i + 1));
+  }
+  static_assert(_tablesOk(), "every Field needs a size (1-4), scale, name and MIN_RAW <= MAX_RAW");
 }

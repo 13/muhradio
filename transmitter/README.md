@@ -25,7 +25,7 @@ VCC (battery voltage) is always appended to every packet.
 [dst:1] [src:1] [uid:2] [pid:1] [bitmap:2] [fields in bit order...]
 ```
 
-- `uid` — 12-bit node identity (hex `CUSTOM_UID` or random on first boot)
+- `uid` — 12-bit node identity (decimal `CUSTOM_UID` 1–255, or random on first boot)
 - `pid` — 8-bit packet ID, random 1–255 per transmission (receiver dedup key)
 - `bitmap` — 16-bit field presence mask
 
@@ -70,39 +70,35 @@ combining BMP280 and BME680.
 
 Each physical node is one `[env:node_xxx]` block. Copy an existing one:
 
-**LoRa node** (Si7021, wakes every 36 s):
+**LoRa node** (Si7021, wakes every 10 min):
 ```ini
 [env:node_bedroom]
+extends = avr_base
 build_flags =
     !python build_flags.py
-    -DSENSOR_TYPE_si7021="SI7021"
-    -DDS_L=36 -DDS_S=8 -DDS_D=100
+    -DSENSOR_TYPE_si7021=\"SI7021\"
+    -DDS_M=10
     -DLO_FREQ=868E6 -DLO_POWER=17
-    -DCUSTOM_UID="A1"
-    -DVERBOSE
+    -DCUSTOM_UID=38
 ```
 
-**CC1101 node** (DS18B20 + BME680, wakes every 60 s):
+**CC1101 node** (DS18B20 + BME680, wakes every 60 s). `cc1101_base` brings the
+CC1101 library and the radio flags (`USE_CC1101`, frequency, TX power):
 ```ini
 [env:cc1101_workshop]
-lib_deps =
-    ${env.lib_deps}
-    LSatan/SmartRC-CC1101-Driver-Lib
+extends = cc1101_base
 build_flags =
-    !python build_flags.py
-    -DSENSOR_TYPE_ds18b20="DS18B20"
+    ${cc1101_base.build_flags}
+    -DSENSOR_TYPE_ds18b20=\"DS18B20\"
     -DSENSOR_PIN_DS18B20=3
-    -DSENSOR_TYPE_bme680="BME680"
-    -DDS_L=60 -DDS_S=8 -DDS_D=100
-    -DUSE_CC1101
-    -DCC1101_MHZ=868.32
-    -DCC1101_POWER=12
-    -DCUSTOM_UID="A2"
-    -DVERBOSE
+    -DSENSOR_TYPE_bme680=\"BME680\"
+    -DDS_S=60
+    -DCUSTOM_UID=39
 ```
 
-`CUSTOM_UID` is a **hex string** (e.g. `"A2"` → uid 162). Omit it to get a
-random uid generated once at boot and stored in EEPROM.
+`CUSTOM_UID` is a **decimal** number 1–255 (pick a free one from the registry).
+Omit it to get a random uid (256–4095) generated at first boot and stored in
+EEPROM. A duplicate UID makes two nodes publish to the same topic.
 
 ### 2. All `build_flags`
 
@@ -122,9 +118,9 @@ random uid generated once at boot and stored in EEPROM.
 | `-DPIR_SETTLE_MS=N` / `-DRADAR_SETTLE_MS=N` | Settle time before sampling (default 0) |
 | `-DUSE_WDT` | 8 s watchdog while awake. **Optiboot only** — the stock Pro Mini bootloader boot-loops after a watchdog reset |
 | `-DSENSOR_PIN_xxx=N` | Override pin for sensor xxx |
-| `-DCUSTOM_UID="hex"` | Fixed node UID (hex string) |
-| `-DDS_L=36` | Timed sleep in seconds (≥8) |
-| `-DDS_S=8` | Short sleep in seconds |
+| `-DCUSTOM_UID=N` | Fixed node UID, decimal 1–255 |
+| `-DDS_S=N` | Timed sleep in seconds (sensor nodes) |
+| `-DDS_M=N` | Timed sleep in minutes (use one of DS_S / DS_M) |
 | `-DDS_D=100` | Pre-sleep delay in ms |
 | `-DLO_FREQ=868E6` | LoRa frequency (868E6 EU, 915E6 US) |
 | `-DLO_POWER=17` | LoRa TX power in dBm |
@@ -188,7 +184,7 @@ BMP280 and BME680 share 0x76 — pull BME680 SDO high and pass `0x77` to
 src/
   main.cpp          — setup() / loop()
   packet.h          — Packet class: bitmap protocol, field encoding
-  node.h            — UID (EEPROM-backed, hex CUSTOM_UID or random)
+  node.h            — UID (EEPROM-backed, CUSTOM_UID or random)
   transport.h       — radio send (LoRa or CC1101) + AES-128 encryption
   power.h           — deep sleep management
   sensors/

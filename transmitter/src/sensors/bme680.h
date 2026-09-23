@@ -3,6 +3,7 @@
 #include <Wire.h>
 #include <Adafruit_BME680.h>
 #include "../packet.h"
+#include "humidity.h"
 
 namespace BME680 {
   static Adafruit_BME680 _sensor;
@@ -27,13 +28,8 @@ namespace BME680 {
     float t = _sensor.temperature;
     if (isnan(t)) return;
     pkt.addI16(Field::T_BME, (int16_t)round(t * 10.0f));
-    // Compensation can yield slightly <0% or >100% at the extremes — clamp
-    // those; values further out are read errors, skip them.
     float h = _sensor.humidity;
-    if (!isnan(h) && h > -5.0f && h < 105.0f) {
-      h = constrain(h, 0.0f, 100.0f);
-      pkt.addI16(Field::H_BME, (int16_t)round(h * 10.0f));
-    }
+    addHumidity(pkt, Field::H_BME, h);
     // Plausible surface pressure: 300–1100 hPa (0 means the read failed)
     uint32_t p = _sensor.pressure; // Pa
     if (p >= 30000UL && p <= 110000UL)

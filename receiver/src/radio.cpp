@@ -8,7 +8,7 @@
 #endif
 
 #ifdef USE_CC1101
-#include <ELECHOUSE_CC1101_SRC_DRV.h>
+#include "cc1101util.h"
 #endif
 
 #ifdef USE_CRYPTO
@@ -59,13 +59,6 @@ static void _hexToBytes(const char* hex, byte* out, uint8_t len) {
 }
 #endif
 
-// ── ISR attribute ─────────────────────────────────────────────────────────────
-#if defined(ESP32) || defined(ESP8266)
-  #define ISR_ATTR IRAM_ATTR
-#else
-  #define ISR_ATTR
-#endif
-
 // ── ISR-safe LoRa receive buffer ───────────────────────────────────────────────
 #ifdef USE_LORA
 
@@ -92,17 +85,11 @@ static volatile bool _gdo0Flag = false;
 static void ISR_ATTR _cc1101ISR() { _gdo0Flag = true; }
 #endif
 
-static void _cc1101Rearm() {
-  ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
-  ELECHOUSE_cc1101.SpiStrobe(CC1101_SFRX);
-  ELECHOUSE_cc1101.SetRx();
-}
-
 // Replaces the library's ReceiveData(), which burst-reads as many bytes as the
 // FIFO length byte claims — a corrupt or foreign frame could overrun buf[80].
 static void _cc1101Drain() {
   if (!ELECHOUSE_cc1101.CheckCRC()) {
-    _cc1101Rearm(); // CheckCRC's own SFRX is ignored outside IDLE/overflow
+    cc1101Rearm(); // CheckCRC's own SFRX is ignored outside IDLE/overflow
     Serial.println(F("> [CC1101] CRC fail"));
     return;
   }
@@ -116,7 +103,7 @@ static void _cc1101Drain() {
       len = 0;
     }
   }
-  _cc1101Rearm();
+  cc1101Rearm();
   if (len == 0) return;
   _cc1101Pkt.len  = len;
   _cc1101Pkt.rssi = ELECHOUSE_cc1101.getRssi();
@@ -160,22 +147,7 @@ void Radio::init() {
 
 #ifdef USE_CC1101
   Serial.print(F("> [CC1101] Init... "));
-#ifdef ESP8266
-  SPI.begin();
-#else
-  SPI.begin(CC1101_SCK, CC1101_MISO, CC1101_MOSI, CC1101_SS);
-#endif
-  ELECHOUSE_cc1101.setSpiPin(CC1101_SCK, CC1101_MISO, CC1101_MOSI, CC1101_SS);
-  ELECHOUSE_cc1101.Init();
-  for (uint8_t attempt = 1; !ELECHOUSE_cc1101.getCC1101(); attempt++) {
-    if (attempt >= 3) {
-      Serial.println(F("SPI ERROR — check wiring, rebooting"));
-      delay(2000);
-      ESP.restart();
-    }
-    delay(200);
-    ELECHOUSE_cc1101.Init();
-  }
+  cc1101Begin();
 #ifdef CC1101_GDO0
   ELECHOUSE_cc1101.setGDO0(CC1101_GDO0);
   attachInterrupt(digitalPinToInterrupt(CC1101_GDO0), _cc1101ISR, FALLING);
@@ -235,19 +207,9 @@ bool Radio::pending() {
     _gdo0Flag = false;
     _cc1101Drain();
   }
-  // Watchdog: belt-and-suspenders in case an ISR was somehow lost
-  {
-    static unsigned long _watchAt = 0;
-    unsigned long ms = millis();
-    if (!_cc1101Ready && ms - _watchAt >= 10000) {
-      _watchAt = ms;
-      uint8_t st = ELECHOUSE_cc1101.SpiReadStatus(CC1101_MARCSTATE) & 0x1F;
-      if (st == 17) { // RXFIFO_OVERFLOW
-        _cc1101Rearm();
-        Serial.println(F("> [CC1101] overflow watchdog — recovered"));
-      }
-    }
-  }
+  static unsigned long watchAt = 0;
+  if (!_cc1101Ready && cc1101OverflowWatch(watchAt))
+    Serial.println(F("> [CC1101] overflow watchdog — recovered"));
 #else
   if (!_cc1101Ready && ELECHOUSE_cc1101.CheckRxFifo(0))
     _cc1101Drain();

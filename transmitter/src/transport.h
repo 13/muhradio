@@ -40,13 +40,13 @@ namespace Transport {
 #endif
 
 #ifdef VERBOSE
-  static void _hexDump(const uint8_t* buf, uint8_t len) {
+  static void _hexDump(const uint8_t* buf, uint8_t len, bool newline = true) {
     for (uint8_t i = 0; i < len; i++) {
       if (buf[i] < 0x10) Serial.print('0');
       Serial.print(buf[i], HEX);
       Serial.print(' ');
     }
-    Serial.println();
+    if (newline) Serial.println();
   }
 #endif
 
@@ -104,16 +104,11 @@ namespace Transport {
     _parseHexKey(AES_KEY, key, 16);
     _aes.setKey(key, 16);
 #ifdef VERBOSE
+    // First and last two bytes only — enough to spot a mismatched key
     Serial.print(F("> Crypto key: "));
-    if (key[0]  < 0x10) Serial.print('0');
-    Serial.print(key[0],  HEX);
-    if (key[1]  < 0x10) Serial.print('0');
-    Serial.print(key[1],  HEX);
-    Serial.print(F(".."));
-    if (key[14] < 0x10) Serial.print('0');
-    Serial.print(key[14], HEX);
-    if (key[15] < 0x10) Serial.print('0');
-    Serial.println(key[15], HEX);
+    _hexDump(key, 2, false);
+    Serial.print(F(".. "));
+    _hexDump(key + 14, 2);
 #endif
 #endif
     return _ready;

@@ -40,7 +40,7 @@ Discard packets where `dst != 0x15`.
 | Offset | Size | Description |
 |---|---|---|
 | 0–1 | 2 | Node UID, little-endian |
-| 2 | 1 | Packet ID (random 1–99, for deduplication) |
+| 2 | 1 | Packet ID (random 1–255, for deduplication) |
 | 3–4 | 2 | Bitmap, little-endian — bit N set means field N is present |
 | 5.. | varies | Field values, present fields only, in ascending bit order |
 

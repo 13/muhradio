@@ -14,7 +14,7 @@ struct Status {
   char   mac[18];
   char   cpu[48];
   char   hostname[24];
-  char   desc[32];
+  char   desc[64];     // = Conf.desc, so the description isn't cut
   char   resetreason[32];
   char   version[64];
   time_t boottime;

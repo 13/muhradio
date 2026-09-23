@@ -144,14 +144,11 @@ static void _updateStatus(Status& s) {
   snprintf(s.resetreason, sizeof(s.resetreason), "%d", esp_reset_reason());
   snprintf(s.cpu, sizeof(s.cpu), "%s(v%d) CPU%d",
     ESP.getChipModel(), ESP.getChipRevision(), ESP.getChipCores());
-  s.memfrag = (s.memfree > 0)
-    ? (uint8_t)((100 * (s.memfree - ESP.getMaxAllocHeap())) / s.memfree)
-    : 0;
 #elif defined(ESP8266)
   strlcpy(s.resetreason, ESP.getResetReason().c_str(), sizeof(s.resetreason));
   snprintf(s.cpu, sizeof(s.cpu), "%u", ESP.getChipId());
-  s.memfrag = ESP.getHeapFragmentation();
 #endif
+  s.memfrag = Net::heapFragPct(s.memfree);
 }
 
 // mDNS, espota, MQTT and NTP need a network. Started from begin() when WiFi is
@@ -309,4 +306,17 @@ time_t Net::now() {
 
 time_t Net::nowUtc() {
   return _ntp.getEpochTime();
+}
+
+uint8_t Net::heapFragPct(uint32_t freeHeap) {
+#if defined(ESP32)
+  return freeHeap > 0
+    ? (uint8_t)((100 * (freeHeap - ESP.getMaxAllocHeap())) / freeHeap)
+    : 0;
+#elif defined(ESP8266)
+  (void)freeHeap;
+  return ESP.getHeapFragmentation();
+#else
+  return 0;
+#endif
 }

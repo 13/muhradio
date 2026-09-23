@@ -88,3 +88,10 @@
 #ifndef MQTT_TOPIC_BRESSER
 #  define MQTT_TOPIC_BRESSER "muh/bresser"
 #endif
+
+// Interrupt handlers must live in IRAM on ESP32/ESP8266 (flash cache may be off)
+#if defined(ESP32) || defined(ESP8266)
+#  define ISR_ATTR IRAM_ATTR
+#else
+#  define ISR_ATTR
+#endif

@@ -1,8 +1,7 @@
 #ifdef USE_BRESSER
 #include "bresser.h"
 #include "config.h"
-#include <SPI.h>
-#include <ELECHOUSE_CC1101_SRC_DRV.h>
+#include "cc1101util.h"
 
 // Bresser 7-in-1 protocol (model 7003600)
 // 868.3 MHz · 8.21 kbps FSK · sync AA2D · 26-byte payload.
@@ -28,11 +27,6 @@ static int     _rxRssi;
 // ── ISR ───────────────────────────────────────────────────────────────────────
 #ifdef CC1101_GDO0
 static volatile bool _gdo0Flag = false;
-#if defined(ESP32) || defined(ESP8266)
-#  define ISR_ATTR IRAM_ATTR
-#else
-#  define ISR_ATTR
-#endif
 static void ISR_ATTR _bIsr() { _gdo0Flag = true; }
 #endif
 
@@ -40,22 +34,7 @@ static void ISR_ATTR _bIsr() { _gdo0Flag = true; }
 
 void Bresser::init() {
   Serial.print(F("> [Bresser] Init CC1101... "));
-#ifdef ESP8266
-  SPI.begin();
-#else
-  SPI.begin(CC1101_SCK, CC1101_MISO, CC1101_MOSI, CC1101_SS);
-#endif
-  ELECHOUSE_cc1101.setSpiPin(CC1101_SCK, CC1101_MISO, CC1101_MOSI, CC1101_SS);
-  ELECHOUSE_cc1101.Init();
-  for (uint8_t attempt = 1; !ELECHOUSE_cc1101.getCC1101(); attempt++) {
-    if (attempt >= 3) {
-      Serial.println(F("SPI ERROR — check wiring, rebooting"));
-      delay(2000);
-      ESP.restart();
-    }
-    delay(200);
-    ELECHOUSE_cc1101.Init();
-  }
+  cc1101Begin();
 #ifdef CC1101_GDO0
   ELECHOUSE_cc1101.setGDO0(CC1101_GDO0);
   attachInterrupt(digitalPinToInterrupt(CC1101_GDO0), _bIsr, FALLING);
@@ -114,9 +93,7 @@ static bool readFixedPkt() {
     _rxRssi = ELECHOUSE_cc1101.getRssi();
     got = true;
   }
-  ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
-  ELECHOUSE_cc1101.SpiStrobe(CC1101_SFRX);
-  ELECHOUSE_cc1101.SetRx();
+  cc1101Rearm();
   return got;
 }
 
@@ -126,21 +103,9 @@ bool Bresser::pending() {
     _gdo0Flag = false;
     if (readFixedPkt()) _ready = true;
   }
-  // Watchdog: recover from RXFIFO_OVERFLOW
-  {
-    static unsigned long _watchAt = 0;
-    unsigned long ms = millis();
-    if (!_ready && ms - _watchAt >= 10000) {
-      _watchAt = ms;
-      uint8_t st = ELECHOUSE_cc1101.SpiReadStatus(CC1101_MARCSTATE) & 0x1F;
-      if (st == 17) {
-        ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
-        ELECHOUSE_cc1101.SpiStrobe(CC1101_SFRX);
-        ELECHOUSE_cc1101.SetRx();
-        Serial.println(F("> [Bresser] overflow — recovered"));
-      }
-    }
-  }
+  static unsigned long watchAt = 0;
+  if (!_ready && cc1101OverflowWatch(watchAt))
+    Serial.println(F("> [Bresser] overflow — recovered"));
 #else
   if (!_ready && (readRxBytes() & 0x7F) >= BRESSER_PKT_LEN) {
     if (readFixedPkt()) _ready = true;

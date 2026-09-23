@@ -21,4 +21,8 @@ namespace Net {
 
   // Raw UTC epoch time (for MQTT timestamps).
   time_t nowUtc();
+
+  // Heap fragmentation in % (ESP8266 native; ESP32 derived from the largest
+  // allocatable block). freeHeap: the ESP.getFreeHeap() value already read.
+  uint8_t heapFragPct(uint32_t freeHeap);
 }

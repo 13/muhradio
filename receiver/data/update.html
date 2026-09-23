@@ -172,7 +172,8 @@
         ws.onopen  = () => setWsBar('connected');
         ws.onclose = () => { setWsBar('disconnected'); setTimeout(connect, 10_000); };
         ws.onmessage = (e) => {
-          const d = JSON.parse(e.data);
+          let d;
+          try { d = JSON.parse(e.data); } catch { return; } // skip a malformed frame
           if (d.hostname) elTitle.textContent = d.hostname;
           if (d.desc) { elDesc.textContent = d.desc; elTitle.textContent = d.desc; }
           if (d.version && d.version !== prevVersion) {

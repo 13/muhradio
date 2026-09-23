@@ -47,7 +47,7 @@ Packets are compact binary frames:
 [dst:1] [src:1] [uid:2] [pid:1] [bitmap:2] [field values ...]
 ```
 
-- `uid` — 12-bit node identity (`CUSTOM_UID` hex or random at first boot)
+- `uid` — 12-bit node identity (decimal `CUSTOM_UID` 1–255, or random at first boot)
 - `pid` — 8-bit packet ID (1–255, random per transmission, used for dedup)
 - `bitmap` — 16-bit field presence mask; each set bit adds one typed field
 - Fields appear in bit order, only present bits, no headers
@@ -77,7 +77,9 @@ cd receiver    && pio test -e native_test
 ```
 
 CI runs them plus a firmware build matrix on every push. The native tests run
-under ASan/UBSan.
+under ASan/UBSan. The workflow lives in `.github/workflows/`; the self-hosted
+Gitea runner executes the same file but skips the PlatformIO cache step, so
+its runs start cold.
 
 ## Dependency updates
 

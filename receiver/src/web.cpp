@@ -28,7 +28,6 @@ extern NodeTable g_nodeTable; // defined in main.cpp
 // ── Module-private state ───────────────────────────────────────────────────────
 static AsyncWebServer _server(80);
 static AsyncWebSocket _ws("/ws");
-static uint8_t        _clients      = 0;
 static Status*        _status       = nullptr;
 static bool           _pendingReboot = false;
 // Set from the AsyncTCP task, serviced in loop(): Status and _wsBuf are only
@@ -88,13 +87,7 @@ static const char* _serialize(Status& s, time_t ts, char* out = _wsBuf,
   s.rssi      = WiFi.RSSI();
   s.memfree   = ESP.getFreeHeap();
   s.timestamp = ts;
-#if defined(ESP32)
-  s.memfrag = (s.memfree > 0)
-    ? (uint8_t)((100 * (s.memfree - ESP.getMaxAllocHeap())) / s.memfree)
-    : 0;
-#elif defined(ESP8266)
-  s.memfrag = ESP.getHeapFragmentation();
-#endif
+  s.memfrag   = Net::heapFragPct(s.memfree);
   s.toJson(out, cap);
   return out;
 }
@@ -105,12 +98,10 @@ static void _onWsEvent(AsyncWebSocket*, AsyncWebSocketClient* client,
     case WS_EVT_CONNECT:
       Serial.printf("> [WS] #%u connected from %s\n",
         client->id(), client->remoteIP().toString().c_str());
-      _clients++;
       _wsRefresh = true;
       break;
     case WS_EVT_DISCONNECT:
       Serial.printf("> [WS] #%u disconnected\n", client->id());
-      if (_clients) _clients--;
       break;
     case WS_EVT_DATA:
       // Any message from client requests a status refresh
@@ -519,6 +510,6 @@ void Web::loop() {
 }
 
 void Web::notify(Status& s, time_t ts) {
-  if (_clients > 0)
+  if (_ws.count() > 0)
     _ws.textAll(_serialize(s, ts));
 }

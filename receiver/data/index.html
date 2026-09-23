@@ -276,7 +276,11 @@
         const ws = new WebSocket(`ws://${location.hostname}/ws`);
         ws.onopen  = () => setWsBar('connected');
         ws.onclose = () => { setWsBar('disconnected'); setTimeout(connect, 10_000); };
-        ws.onmessage = (e) => onMessage(JSON.parse(e.data));
+        ws.onmessage = (e) => {
+          let d;
+          try { d = JSON.parse(e.data); } catch { return; } // skip a malformed frame
+          onMessage(d);
+        };
       }
 
       // ── Message handler ───────────────────────────────────────────────────────
@@ -319,7 +323,8 @@
 
           for (const raw of d.packets) {
             if (!raw) continue;
-            const pkt = JSON.parse(raw);
+            let pkt;
+            try { pkt = JSON.parse(raw); } catch { continue; } // one bad packet mustn't break the list
             const ts  = pkt.timestamp ? fmtTime(pkt.timestamp) : (pkt.ts ? fmtTime(pkt.ts) : '');
             delete pkt.RN; delete pkt.node; delete pkt.timestamp; delete pkt.ts;
 
@@ -396,7 +401,13 @@
       async function refreshNodes() {
         try {
           const d = await (await fetch('/nodes')).json();
-          if (!Array.isArray(d.nodes) || d.nodes.length === 0) return;
+          // Stats turned off (or nothing heard yet): hide the card rather than
+          // leaving a stale table on screen
+          if (!Array.isArray(d.nodes) || d.nodes.length === 0) {
+            elNodesCard.classList.add('hidden');
+            elNodes.replaceChildren();
+            return;
+          }
           d.nodes.sort((a, b) => a.uid - b.uid);
           elNodesCard.classList.remove('hidden');
           elNodes.replaceChildren();
