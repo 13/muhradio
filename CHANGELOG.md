@@ -3,24 +3,7 @@
 Components are tagged independently: `receiver/vX.Y.Z` and `transmitter/vX.Y.Z`.
 History before the versions below: see `git log`.
 
-## Unreleased
-
-### transmitter
-
-- Button, PIR and radar nodes wake on a pin-change interrupt, the same fix
-  v1.9.0 made for switches: `attachInterrupt()` edges on INT0/INT1 can't wake
-  the ATmega328P from power-down. Only the active edge transmits (press,
-  motion/presence start → 1); release and motion end go straight back to
-  sleep. Debounce via `-DBUTTON_DEBOUNCE_MS` (default 20). Any digital pin now
-  works. PIR nodes no longer block in setup and send a VCC announce at boot,
-  like button and radar nodes.
-- `cc1101_ds18b20_si7021` uses UID **14** as the registry says; it collided
-  with `cc1101_si7021_bmp280` on 23. A reflashed node publishes to `…/14/json`.
-- A node whose radio failed to initialise now puts it to sleep before sleeping
-  forever, instead of leaving it in idle and draining the cell.
-- Opt-in watchdog `-DUSE_WDT` (8 s while awake). Optiboot only.
-
-### receiver
+## receiver/v1.9.0 — 2026-09-23
 
 - CC1101: received frames longer than the 80-byte buffer are dropped; the
   library's `ReceiveData()` trusted the FIFO length byte and could overrun it.
@@ -40,39 +23,47 @@ History before the versions below: see `git log`.
 - Config import validates the file (SSID and broker set, numbers in range)
   before it replaces the live config, and doesn't buffer the body for
   unauthenticated requests.
-- `/reboot` is POST-only (a GET could be triggered by any `<img>` on another
-  page). Authenticated endpoints and the OTA upload refuse cross-origin
-  requests. New `GET /api/auth`; the settings and update pages warn when no
-  `WEB_PASS` is set, and so does the serial log at boot.
-- Build fails on an `AES_KEY` that isn't 32 hex characters.
-
-### both
-
-- `transmitter/pio_secrets_example.py` no longer ships a key: `AES_KEY = ""`,
-  like the receiver template.
-- README documents that the AES framing has no authentication or replay
-  protection.
-- `shared/fields.h`: compile-time checks that every field has a size, scale,
-  name and a valid range, and that `COUNT` matches the `Field` enum.
-- Docs: transmitter README examples use the real config (decimal
-  `CUSTOM_UID`, `DS_S`/`DS_M`, `cc1101_base`); `HOWTORECEIVE.md` pid range is
-  1–255; README notes the Gitea runner has no PlatformIO cache.
-  `pio_secrets.py` is ignored once, at the repo root.
-
-### cleanup (no behaviour change)
-
-- transmitter: CC1101 envs extend a new `[cc1101_base]` (library + radio
-  flags); resolved flags are identical for all 20 envs. Shared
-  `addHumidity()` for Si7021/BME680. `cc1101_si7021` no longer builds with
-  `-DVERBOSE` (Serial on costs battery).
-- receiver: CC1101 bring-up, re-arm and overflow watchdog shared by the
-  muhradio and Bresser paths (`cc1101util.h`); one `ISR_ATTR`; one heap
-  fragmentation helper; WS client count from `_ws.count()`.
-- receiver: status `desc` is 64 bytes like the config field, so long
-  descriptions aren't cut in the UI.
-- web UI: a malformed WebSocket frame or packet string no longer breaks the
+- **`/reboot` is POST-only** (a GET could be triggered by any `<img>` on
+  another page). Authenticated endpoints and the OTA upload refuse
+  cross-origin requests (`Origin` must match `Host`). New `GET /api/auth`; the
+  settings and update pages warn when no `WEB_PASS` is set, and so does the
+  serial log at boot.
+- Status `desc` is 64 bytes like the config field, so long descriptions aren't
+  cut in the UI.
+- Web UI: a malformed WebSocket frame or packet string no longer breaks the
   page; the nodes card hides instead of showing a stale table when stats are
   off.
+- Build fails on an `AES_KEY` that isn't 32 hex characters.
+- Internal: CC1101 bring-up, re-arm and overflow watchdog shared by the
+  muhradio and Bresser paths (`cc1101util.h`); one `ISR_ATTR`; one heap
+  fragmentation helper; WS client count from `_ws.count()`.
+- `shared/fields.h`: compile-time checks that every field has a size, scale,
+  name and a valid range, and that `COUNT` matches the `Field` enum.
+
+## transmitter/v1.10.0 — 2026-09-23
+
+- **Button, PIR and radar nodes wake on a pin-change interrupt**, the same fix
+  v1.9.0 made for switches: `attachInterrupt()` edges on INT0/INT1 can't wake
+  the ATmega328P from power-down. Only the active edge transmits (press,
+  motion/presence start → 1); release and motion end go straight back to
+  sleep. Debounce via `-DBUTTON_DEBOUNCE_MS` (default 20). Any digital pin now
+  works. PIR nodes no longer block in setup and send a VCC announce at boot,
+  like button and radar nodes.
+- **`cc1101_ds18b20_si7021` uses UID 14** as the registry says; it collided
+  with `cc1101_si7021_bmp280` on 23. A reflashed node publishes to `…/14/json`.
+- A node whose radio failed to initialise now puts it to sleep before sleeping
+  forever, instead of leaving it in idle and draining the cell.
+- Opt-in watchdog `-DUSE_WDT` (8 s while awake). Optiboot only.
+- `pio_secrets_example.py` no longer ships a key (`AES_KEY = ""`); the build
+  fails on an `AES_KEY` that isn't 32 hex characters.
+- CC1101 envs extend a new `[cc1101_base]` (library + radio flags; resolved
+  flags identical for all envs). `cc1101_si7021` no longer builds with
+  `-DVERBOSE` (Serial on costs battery). Shared `addHumidity()` for
+  Si7021/BME680. `shared/fields.h` gains compile-time table checks.
+- Docs: README examples use the real config (decimal `CUSTOM_UID`,
+  `DS_S`/`DS_M`, `cc1101_base`); `HOWTORECEIVE.md` pid range is 1–255; the
+  README documents that the AES framing has no authentication or replay
+  protection.
 
 ## transmitter/v1.9.0 — 2026-09-23
 
