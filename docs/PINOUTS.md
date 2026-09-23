@@ -51,7 +51,7 @@ Default hardware SPI pins. GDO0 is required for TX-done detection.
 | VCC (3.3 V) | VCC |
 | GND | GND |
 
-**Button / Switch / PIR / Radar (digital interrupt)**:
+**Button / PIR / Radar (digital interrupt)**:
 
 | Pro Mini | Sensor |
 |---|---|
@@ -59,11 +59,26 @@ Default hardware SPI pins. GDO0 is required for TX-done detection.
 | VCC (3.3 V) | VCC |
 | GND | GND |
 
-D2 is reserved for the radio (DIO0 / GDO0); D3 is the only other interrupt
-pin on the Pro Mini, so interrupt sensors default there. Override with
-`-DSENSOR_PIN_BUTTON=N`, `-DSENSOR_PIN_SWITCH=N`, `-DSENSOR_PIN_PIR=N` or
-`-DSENSOR_PIN_RADAR=N` (any digital pin works for non-interrupt wake if you
-poll instead).
+D2 is reserved for the radio (DIO0 / GDO0); D3 is the only other external
+interrupt pin on the Pro Mini, so these sensors default there. Override with
+`-DSENSOR_PIN_BUTTON=N`, `-DSENSOR_PIN_PIR=N` or `-DSENSOR_PIN_RADAR=N`.
+
+**Switch — reed or rocker (dry contact)**:
+
+| Pro Mini | Switch |
+|---|---|
+| D3 (default, `-DSENSOR_PIN_SWITCH=N`) | one leg |
+| GND | other leg |
+
+No VCC leg and no external resistor — the pin uses the internal pull-up, so a
+closed contact reads LOW. The switch wakes the node on a **pin-change
+interrupt**, which fires on both edges and works on **any digital pin**, so it
+is not restricted to D2/D3 the way the sensors above are.
+
+A reed switch (door/window, magnet on the moving leaf) and a rocker wire
+identically; they differ only in how long the contact bounces. Set
+`-DSWITCH_DEBOUNCE_MS=N` to match (default 30 for a rocker, 5 is enough for a
+reed), and `-DSWITCH_INVERT` if the contact is normally-closed.
 
 **Press-feedback LED (optional, button nodes)** — blinks `LED_MS` ms
 (default 50) on each press:

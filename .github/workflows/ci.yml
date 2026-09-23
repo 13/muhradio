@@ -35,6 +35,7 @@ jobs:
         include:
           - { project: transmitter, env: node_bme680 }
           - { project: transmitter, env: cc1101_si7021 }
+          - { project: transmitter, env: cc1101_switch }
           - { project: receiver, env: esp32-s3-zero }
           - { project: receiver, env: esp32-s3-zero-cc1101 }
           - { project: receiver, env: d1_mini_espota }

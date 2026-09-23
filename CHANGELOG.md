@@ -3,7 +3,22 @@
 Components are tagged independently: `receiver/vX.Y.Z` and `transmitter/vX.Y.Z`.
 History before the versions below: see `git log`.
 
-## transmitter — unreleased
+## transmitter/v1.9.0 — 2026-09-23
+
+- Switch nodes (reed or rocker) now wake reliably on **both** edges: the wake
+  source moved from `attachInterrupt(..., CHANGE)` to a pin-change interrupt.
+  In power-down the ATmega328P stops the I/O clock, so INT0/INT1 wake on LOW
+  level only and edge-triggered wakes never fired — the node slept through
+  flips. PCINT is detected asynchronously, and as a side effect the switch is
+  no longer restricted to D2/D3.
+- Switch nodes: contact debounce (`-DSWITCH_DEBOUNCE_MS`, default 30 ms; a reed
+  can use 5) and invertible encoding (`-DSWITCH_INVERT`) for normally-closed
+  contacts. A wake that settles back on the position already reported now goes
+  straight back to sleep instead of transmitting, so a rattling door or a
+  chattering reed no longer drains the cell.
+- CI builds `cc1101_switch`, so interrupt-sensor code is covered.
+
+## transmitter/v1.8.0 — 2026-09-17
 
 - Button nodes: optional press-feedback LED (`-DLED_PIN=N`, blink length
   `-DLED_MS`, default 50 ms); enabled on `cc1101_button_test` (D4)

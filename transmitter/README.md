@@ -15,7 +15,7 @@ sleeps again.
 | PIR | PIR | interrupt |
 | Radar | RADAR | interrupt |
 | Button | BUTTON | interrupt |
-| Switch | SWITCH | interrupt |
+| Switch | SWITCH | pin change (both edges) |
 
 VCC (battery voltage) is always appended to every packet.
 
@@ -56,8 +56,10 @@ by both transmitter and receiver; a native round-trip test
 All pin tables live in [docs/PINOUTS.md](../docs/PINOUTS.md) — Pro Mini →
 LoRa/CC1101 radio wiring plus I2C, DS18B20 and interrupt-sensor connections.
 
-Interrupt-driven sensors (button, switch, PIR, radar) use **D3** by default
+Interrupt-driven sensors (button, PIR, radar) use **D3** by default
 (D2 is reserved for the radio). Configure with `-DSENSOR_PIN_xxx=N`.
+A **switch** wakes on a pin-change interrupt instead, so it works on any
+digital pin — D3 is only its default.
 I2C sensors share one bus — see [I2C address notes](#i2c-address-notes) if
 combining BMP280 and BME680.
 
@@ -112,7 +114,9 @@ random uid generated once at boot and stored in EEPROM.
 | `-DSENSOR_TYPE_pir="PIR"` | Enable PIR (interrupt wake) |
 | `-DSENSOR_TYPE_radar="RADAR"` | Enable radar (interrupt wake) |
 | `-DSENSOR_TYPE_button="BUTTON"` | Enable button (interrupt wake) |
-| `-DSENSOR_TYPE_switch="SWITCH"` | Enable switch (interrupt wake) |
+| `-DSENSOR_TYPE_switch="SWITCH"` | Enable switch — reed or rocker (pin-change wake) |
+| `-DSWITCH_DEBOUNCE_MS=N` | Switch contact settle time (default 30; reed can use 5) |
+| `-DSWITCH_INVERT` | Flip switch encoding (normally-closed reed, reversed rocker) |
 | `-DSENSOR_PIN_xxx=N` | Override pin for sensor xxx |
 | `-DCUSTOM_UID="hex"` | Fixed node UID (hex string) |
 | `-DDS_L=36` | Timed sleep in seconds (≥8) |

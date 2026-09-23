@@ -108,6 +108,16 @@ void setup() {
 }
 
 void loop() {
+#ifdef SENSOR_TYPE_switch
+  // Debounce before anything else, and go straight back to sleep on a spurious
+  // wake or on chatter that settled where it already was. VCC is added
+  // unconditionally below, so without this the node would transmit anyway.
+  if (!Switch::pending()) {
+    Power::sleepSensor();
+    return;
+  }
+#endif
+
   // uid and pid go into the fixed header, not the bitmap
   pkt.reset(Node::uid(), (uint8_t)random(1, 256));
 
