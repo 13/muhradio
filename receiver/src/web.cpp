@@ -58,8 +58,24 @@ struct OtaState {
 static OtaState _ota;
 
 // ── Auth ───────────────────────────────────────────────────────────────────────
-// Basic auth on mutating endpoints, active only when WEB_PASS is set.
+// Cross-site guard: browsers send Origin on cross-origin POSTs (fetch and
+// plain forms alike), and a page elsewhere could otherwise ride cached basic
+// auth credentials. Requests without Origin (curl, same-origin GET) pass.
+static bool _sameOrigin(AsyncWebServerRequest* r) {
+  if (!r->hasHeader("Origin")) return true;
+  String o = r->getHeader("Origin")->value();
+  int i = o.indexOf("://");
+  return i >= 0 && o.substring(i + 3) == r->host();
+}
+
+// Guard for mutating endpoints: same-origin always, basic auth when WEB_PASS
+// is set.
 static bool _auth(AsyncWebServerRequest* r) {
+  if (!_sameOrigin(r)) {
+    r->send(403, "application/json",
+      "{\"success\":false,\"message\":\"cross-origin request refused\"}");
+    return false;
+  }
   if (!WEB_PASS[0]) return true;
   if (r->authenticate(WEB_USER, WEB_PASS)) return true;
   r->requestAuthentication();
@@ -137,9 +153,13 @@ void Web::begin(Status& s) {
     g_nodeTable.toJson(buf, sizeof(buf), (uint32_t)Net::nowUtc(), Net::nodeId);
     r->send(200, "application/json", buf);
   });
-  // GET kept for the update.html link; restart deferred to loop() so the
-  // response actually reaches the client.
-  _server.on("/reboot", HTTP_GET | HTTP_POST, [](AsyncWebServerRequest* r) {
+  // Pages use it to warn that the device is unprotected (no WEB_PASS).
+  _server.on("/api/auth", HTTP_GET, [](AsyncWebServerRequest* r) {
+    r->send(200, "application/json", WEB_PASS[0] ? "{\"auth\":true}" : "{\"auth\":false}");
+  });
+  // POST only: a GET would let any <img src> on another page reboot the device.
+  // Restart deferred to loop() so the response actually reaches the client.
+  _server.on("/reboot", HTTP_POST, [](AsyncWebServerRequest* r) {
     if (!_auth(r)) return;
     AsyncWebServerResponse* resp = r->beginResponse(200, "application/json",
       "{\"reboot\":true,\"message\":\"Rebooting...\"}");
@@ -170,7 +190,7 @@ void Web::begin(Status& s) {
       if (!index) {
         Serial.printf("> [OTA] %s\n", filename.c_str());
         _ota = OtaState{OtaState::DETECT, {}, 0, 0, 0, 0};
-        if (WEB_PASS[0] && !r->authenticate(WEB_USER, WEB_PASS)) {
+        if (!_sameOrigin(r) || (WEB_PASS[0] && !r->authenticate(WEB_USER, WEB_PASS))) {
           Serial.println(F("> [OTA] unauthorized — dropping upload"));
           _ota.phase = OtaState::ABORT;
         }
@@ -455,7 +475,7 @@ void Web::begin(Status& s) {
       if (index == 0) {
         // Don't allocate for unauthenticated callers; the request handler
         // still answers them with 403/401.
-        if (!WEB_PASS[0] || !r->authenticate(WEB_USER, WEB_PASS)) return;
+        if (!WEB_PASS[0] || !_sameOrigin(r) || !r->authenticate(WEB_USER, WEB_PASS)) return;
         r->_tempObject = calloc(1, total + 1);
         // Reject anything that doesn't even start like a JSON object
         if (r->_tempObject && (len == 0 || data[0] != '{')) {
@@ -473,6 +493,8 @@ void Web::begin(Status& s) {
 
   _server.begin();
   Serial.println(F("> [HTTP] Started"));
+  if (!WEB_PASS[0])
+    Serial.println(F("> [HTTP] WARNING: no WEB_PASS — settings, OTA and espota are open to the LAN"));
 
 #ifdef ESP8266
   ota8266Begin(nullptr);

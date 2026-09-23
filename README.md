@@ -54,6 +54,13 @@ Packets are compact binary frames:
 
 Optional AES-128 ECB encryption (PKCS#7 padding) is enabled by setting
 `AES_KEY` in `pio_secrets.py` on **both** transmitter and receiver.
+The build fails if the key isn't exactly 32 hex characters.
+
+> **Known limitation:** the encryption hides packet contents but does not
+> authenticate them. There is no MAC and no nonce or counter, so a recorded
+> frame can be replayed (the receiver's `uid+pid` dedup only spans 60 s), and
+> ECB leaks identical plaintext blocks. Fixing this changes the wire format for
+> every node, so it's deliberately out of scope for now.
 
 See [transmitter/README.md](transmitter/README.md) for the full field table.
 The field tables (sizes, scales, signedness, plausibility ranges) live in

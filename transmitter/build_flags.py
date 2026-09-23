@@ -8,10 +8,19 @@ AES key setup:
   cp pio_secrets_example.py pio_secrets.py
   # edit pio_secrets.py with: openssl rand -hex 16
 """
+import re
 import subprocess
 import datetime
 import sys
 import os
+
+def _check_aes_key(key):
+    """AES-128 key: exactly 32 hex chars. Anything else would be parsed into a
+    silently wrong key and every packet would fail to decrypt."""
+    if not re.fullmatch(r'[0-9a-fA-F]{32}', key):
+        print("ERROR: AES_KEY must be exactly 32 hex characters (openssl rand -hex 16)",
+              file=sys.stderr)
+        sys.exit(1)
 
 def _git(*args):
     try:
@@ -48,6 +57,7 @@ try:
     import pio_secrets
     key = getattr(pio_secrets, 'AES_KEY', None)
     if key:
+        _check_aes_key(key)
         print("'-DUSE_CRYPTO'")
         print(f"'-DAES_KEY=\"{key}\"'")
     else:

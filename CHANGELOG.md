@@ -40,6 +40,18 @@ History before the versions below: see `git log`.
 - Config import validates the file (SSID and broker set, numbers in range)
   before it replaces the live config, and doesn't buffer the body for
   unauthenticated requests.
+- `/reboot` is POST-only (a GET could be triggered by any `<img>` on another
+  page). Authenticated endpoints and the OTA upload refuse cross-origin
+  requests. New `GET /api/auth`; the settings and update pages warn when no
+  `WEB_PASS` is set, and so does the serial log at boot.
+- Build fails on an `AES_KEY` that isn't 32 hex characters.
+
+### both
+
+- `transmitter/pio_secrets_example.py` no longer ships a key: `AES_KEY = ""`,
+  like the receiver template.
+- README documents that the AES framing has no authentication or replay
+  protection.
 
 ## transmitter/v1.9.0 — 2026-09-23
 

@@ -40,6 +40,13 @@
     <main class="flex-1 py-4">
       <div class="max-w-2xl mx-auto px-4 flex flex-col gap-4">
 
+        <!-- Shown when the firmware has no WEB_PASS (GET /api/auth) -->
+        <div id="authWarn" class="hidden rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+          <strong>No web password set.</strong> Anyone on this network can change settings, reboot
+          and flash firmware (web upload and espota). Set <code>WEB_PASS</code> in
+          <code>pio_secrets.py</code> and reflash.
+        </div>
+
         <!-- Upload card -->
         <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
           <button class="card-hdr w-full px-4 py-3 flex items-center justify-between text-left">
@@ -82,13 +89,13 @@
             <svg class="card-chevron w-4 h-4 text-gray-400 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
           </button>
           <div class="border-t border-gray-100 dark:border-gray-800 p-4">
-            <a href="/reboot"
+            <button id="rebootBtn"
                class="flex items-center justify-center w-full
                       bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700
                       text-gray-700 dark:text-gray-200
                       py-3 px-4 rounded-xl transition-colors text-sm min-h-[44px]">
               Reboot
-            </a>
+            </button>
           </div>
         </div>
 
@@ -305,7 +312,7 @@
           elSuccessIcon.classList.add('hidden');
           elSpinner.classList.remove('hidden');
           setModalMsg('Rebooting…', 'Waiting for device to come back online.');
-          await fetch('/reboot').catch(() => {});
+          await fetch('/reboot', { method: 'POST' }).catch(() => {});
           waitForReboot();
 
         } catch (err) {
@@ -326,6 +333,19 @@
           const nowHidden = body.classList.toggle('hidden');
           ch.classList.toggle('-rotate-90', nowHidden);
         });
+      });
+
+
+      fetch('/api/auth').then(r => r.json())
+        .then(d => { if (!d.auth) document.getElementById('authWarn').classList.remove('hidden'); })
+        .catch(() => {});
+
+      // /reboot is POST-only
+      document.getElementById('rebootBtn').addEventListener('click', async () => {
+        if (!confirm('Reboot the device?')) return;
+        showModal('Rebooting…', 'Waiting for device to come back online.');
+        await fetch('/reboot', { method: 'POST' }).catch(() => {});
+        waitForReboot();
       });
 
       window.addEventListener('load', connect);

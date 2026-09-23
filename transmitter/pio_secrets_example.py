@@ -6,4 +6,4 @@
 # build_flags.py reads pio_secrets.py and emits -DUSE_CRYPTO -DAES_KEY=...
 # If pio_secrets.py does not exist, crypto is simply disabled.
 
-AES_KEY = "7f2cb15cb58eb5d1dc2752615eaea08e"
+AES_KEY = ""   # 32 hex chars, same value on the receiver

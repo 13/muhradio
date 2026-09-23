@@ -156,20 +156,25 @@ data is served as one JSON table at `GET /nodes`.
 ## HTTP API
 
 Auth = HTTP basic auth with `WEB_USER`/`WEB_PASS`, active only when `WEB_PASS`
-is set. Export/import refuse entirely (403) without `WEB_PASS`.
+is set. Export/import refuse entirely (403) without `WEB_PASS`, and the web
+pages show a warning banner while it's unset. Authenticated endpoints also
+refuse cross-origin requests (an `Origin` header that doesn't match `Host`)
+with 403, so another site can't ride cached basic-auth credentials. Scripts
+that send no `Origin` header, like curl, are unaffected.
 
 | Endpoint | Method | Auth | Purpose |
 |---|---|---|---|
 | `/json` | GET | no | full status JSON (same payload as the websocket) |
 | `/nodes` | GET | no | node health table |
 | `/ip`, `/ping` | GET | no | plain-text IP / liveness |
-| `/reboot` | GET/POST | yes | reboot (deferred until response is sent) |
+| `/api/auth` | GET | no | `{"auth":true\|false}`: whether `WEB_PASS` is set |
+| `/reboot` | POST | yes | reboot (deferred until response is sent) |
 | `/update` | POST | yes | OTA upload: firmware.bin, littlefs.bin or ota_bundle.bin |
 | `/api/settings` | GET | yes | current config, secrets masked as `***` |
 | `/api/settings` | POST | yes | update config + reboot (`***` = keep, empty = clear) |
 | `/api/reset` | POST | yes | delete /config.json + reboot |
 | `/api/config/export` | GET | yes + WEB_PASS required | download /config.json (plaintext secrets) |
-| `/api/config/import` | POST | yes + WEB_PASS required | upload config.json + reboot |
+| `/api/config/import` | POST | yes + WEB_PASS required | upload config.json + reboot (rejected unless `wifi_ssid`/`mqtt_server` are set and numbers are in range) |
 
 ### Bresser 7003600
 
