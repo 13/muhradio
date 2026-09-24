@@ -3,6 +3,20 @@
 Components are tagged independently: `receiver/vX.Y.Z` and `transmitter/vX.Y.Z`.
 History before the versions below: see `git log`.
 
+## transmitter/v1.11.0 — 2026-09-24
+
+- BME680: the gas heater is off unless `-DBME680_GAS` is set. The driver arms
+  it at 320 °C for 150 ms on every reading (~2 mAs), more than everything
+  else on the node combined; T/H/P are unaffected. The four existing BME680
+  envs carry the flag so their packets don't change until you drop it.
+- BME680: the read is asynchronous; the node powers down (~5 uA) while the
+  sensor measures instead of busy-waiting at ~4 mA. The driver's
+  `performReading()` waited twice the measurement period.
+- `Power::sleepMs()`: watchdog power-down for a millisecond wait, planned by
+  the pure `sleep_plan.h` (native test `test_sleep_plan`); it advances
+  `millis()` by the time slept so millis-based library waits see it. The
+  DS18B20 conversion wait uses it too (same 870 ms as before).
+
 ## receiver/v1.9.0 — 2026-09-23
 
 - CC1101: received frames longer than the 80-byte buffer are dropped; the

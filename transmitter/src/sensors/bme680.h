@@ -3,6 +3,7 @@
 #include <Wire.h>
 #include <Adafruit_BME680.h>
 #include "../packet.h"
+#include "../power.h"
 #include "humidity.h"
 
 namespace BME680 {
@@ -14,12 +15,28 @@ namespace BME680 {
       Serial.println(F("BME680: not detected"));
 #endif
     }
+#ifndef BME680_GAS
+    // begin() arms the gas heater (320 C for 150 ms on every reading, ~2 mAs:
+    // by far the biggest consumer on a BME680 node). Off unless the G_BME
+    // field is wanted (-DBME680_GAS); the T/H/P fields are unaffected.
+    _sensor.setGasHeater(0, 0);
+#endif
   }
 
   inline void read(Packet& pkt) {
     // On failure just skip our fields — the packet still goes out on schedule
     // with whatever other sensors (and VCC) provided.
-    if (!_sensor.performReading()) {
+    // Start the measurement, power down while the sensor works (the driver's
+    // performReading() would busy-wait twice the period instead), then collect.
+    if (_sensor.beginReading() == 0) {
+#ifdef VERBOSE
+      Serial.println(F("BME680: read failed"));
+#endif
+      return;
+    }
+    int wait = _sensor.remainingReadingMillis();
+    if (wait > 0) Power::sleepMs((uint16_t)(wait + wait / 4)); // +25 %: WDT tolerance, deadline is hard
+    if (!_sensor.endReading()) {
 #ifdef VERBOSE
       Serial.println(F("BME680: read failed"));
 #endif

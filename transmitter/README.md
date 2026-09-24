@@ -11,7 +11,7 @@ sleeps again.
 | Si7021 | T_SI, H_SI | timed |
 | DS18B20 | T_DS | timed |
 | BMP280 | T_BMP, P_BMP | timed |
-| BME680 | T_BME, H_BME, P_BME, G_BME | timed |
+| BME680 | T_BME, H_BME, P_BME (+ G_BME with `BME680_GAS`) | timed |
 | PIR | PIR | interrupt |
 | Radar | RADAR | interrupt |
 | Button | BUTTON | interrupt |
@@ -107,7 +107,8 @@ EEPROM. A duplicate UID makes two nodes publish to the same topic.
 | `-DSENSOR_TYPE_si7021="SI7021"` | Enable Si7021 |
 | `-DSENSOR_TYPE_ds18b20="DS18B20"` | Enable DS18B20 |
 | `-DSENSOR_TYPE_bmp280="BMP280"` | Enable BMP280 |
-| `-DSENSOR_TYPE_bme680="BME680"` | Enable BME680 |
+| `-DSENSOR_TYPE_bme680="BME680"` | Enable BME680 (temperature, humidity, pressure) |
+| `-DBME680_GAS` | Also run the BME680 gas heater and send G_BME. Off by default: the heater (320 °C for 150 ms per reading) costs more energy than everything else on the node combined |
 | `-DSENSOR_TYPE_pir="PIR"` | Enable PIR (interrupt wake) |
 | `-DSENSOR_TYPE_radar="RADAR"` | Enable radar (interrupt wake) |
 | `-DSENSOR_TYPE_button="BUTTON"` | Enable button (interrupt wake) |
@@ -186,7 +187,8 @@ src/
   packet.h          — Packet class: bitmap protocol, field encoding
   node.h            — UID (EEPROM-backed, CUSTOM_UID or random)
   transport.h       — radio send (LoRa or CC1101) + AES-128 encryption
-  power.h           — deep sleep management
+  power.h           — deep sleep management, sleepMs() conversion wait
+  sleep_plan.h      — pure WDT period planner for sleepMs() (native test)
   sensors/
     si7021.h / ds18b20.h / bmp280.h / bme680.h
     button.h / switch.h / pir.h / radar.h

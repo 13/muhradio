@@ -2,8 +2,8 @@
 #include <Arduino.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#include <LowPower.h>
 #include "../packet.h"
+#include "../power.h"
 
 namespace DS18B20 {
   static OneWire           _ow(SENSOR_PIN_DS18B20);
@@ -18,9 +18,7 @@ namespace DS18B20 {
     _sensor.requestTemperatures();
     // 12-bit conversion takes 750 ms; power down instead of busy-waiting.
     // WDT periods vary ~±10%, so sleep a nominal 870 ms (worst case >750 ms).
-    LowPower.powerDown(SLEEP_500MS, ADC_OFF, BOD_OFF);
-    LowPower.powerDown(SLEEP_250MS, ADC_OFF, BOD_OFF);
-    LowPower.powerDown(SLEEP_120MS, ADC_OFF, BOD_OFF);
+    Power::sleepMs(870);
     float t = _sensor.getTempCByIndex(0);
     // -127 = disconnected; exactly 85.0 is the power-on-reset value the chip
     // returns when the conversion never ran (marginal wiring/power).
