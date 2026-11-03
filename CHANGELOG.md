@@ -3,6 +3,18 @@
 Components are tagged independently: `receiver/vX.Y.Z` and `transmitter/vX.Y.Z`.
 History before the versions below: see `git log`.
 
+## transmitter/v1.12.0 — 2026-11-03
+
+- Button: opt-in hold-to-confirm, `-DBUTTON_HOLD_MS=N` (e.g. 1000 for a
+  garage door). The press is sent once the button has been held N ms while
+  still down; a shorter press sends nothing and goes back to sleep. Contact
+  dropouts up to `-DBUTTON_GAP_MS` (default 30) don't abort the hold. With
+  `LED_PIN` the LED blinks while held and flashes 300 ms when sent. In this
+  mode the power-on announce is VCC only, even with the button held, so a
+  battery swap can't trigger the door. Pure logic in `hold_gate.h`, native
+  test `test_hold`. Enabled (1000 ms) on `cc1101_button`; default 0, so
+  other button nodes behave as before. The packet format is unchanged.
+
 ## transmitter/v1.11.0 — 2026-09-24
 
 - BME680: the gas heater is off unless `-DBME680_GAS` is set. The driver arms

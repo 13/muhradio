@@ -116,6 +116,8 @@ EEPROM. A duplicate UID makes two nodes publish to the same topic.
 | `-DSWITCH_DEBOUNCE_MS=N` | Switch contact settle time (default 30; reed can use 5) |
 | `-DSWITCH_INVERT` | Flip switch encoding (normally-closed reed, reversed rocker) |
 | `-DBUTTON_DEBOUNCE_MS=N` | Button settle time after a wake (default 20) |
+| `-DBUTTON_HOLD_MS=N` | Hold-to-confirm (garage door): send only after the button is held N ms, e.g. 1000; released early = nothing sent. LED blinks while held, flashes 300 ms when sent. The power-on announce never carries BUTTON. Default 0 = send on press |
+| `-DBUTTON_GAP_MS=N` | Contact dropouts up to N ms don't abort a hold (default 30) |
 | `-DPIR_SETTLE_MS=N` / `-DRADAR_SETTLE_MS=N` | Settle time before sampling (default 0) |
 | `-DUSE_WDT` | 8 s watchdog while awake. **Optiboot only** — the stock Pro Mini bootloader boot-loops after a watchdog reset |
 | `-DSENSOR_PIN_xxx=N` | Override pin for sensor xxx |
